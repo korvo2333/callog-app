@@ -403,6 +403,77 @@ function appStatusBar() {
   try { if (P.StatusBar && P.StatusBar.setBackgroundColor) P.StatusBar.setBackgroundColor({ color: hex }).catch(() => {}); } catch (e) { /* 同上 */ }
 }
 
+// ════════ 左右滑动换页：手指往左滑 → 下一页，往右滑 → 上一页 ════════
+// 弹层 / 锁屏开着、在输入框 / 图表 / 横向滚动条 / 底部导航上滑都不算；离屏幕左右边缘太近的也不算（留给系统的返回手势）
+const SWIPE = { on: false, h: false, x0: 0, y0: 0, t0: 0, dx: 0, dy: 0 };
+const SWIPE_EDGE = 22;
+const swipeNeed = () => Math.max(64, innerWidth * .2);                    // 拉多远算数
+const swipeTo = dx => TAB_ORDER[TAB_ORDER.indexOf(VIEW.tab) + (dx < 0 ? 1 : -1)];
+function swipeBlocked(t) {
+  if (['#sheet-bg', '#dlg-bg', '#lock'].some(s => { const e = $(s); return e && e.classList.contains('open'); })) return true;
+  for (let e = t; e && e.nodeType === 1 && e !== document.body; e = e.parentElement) {
+    if (e.matches('input, textarea, select, [contenteditable], .chart, .nav, [data-noswipe]')) return true;
+    if (e.scrollWidth > e.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(e).overflowX)) return true;
+  }
+  return false;
+}
+function swipeHint() {
+  let h = $('#swipe-hint');
+  if (!h) {
+    h = document.createElement('div'); h.id = 'swipe-hint'; h.setAttribute('aria-hidden', 'true');
+    h.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><b></b>';
+    document.body.appendChild(h);
+  }
+  return h;
+}
+function swipeShow(y) {
+  const h = swipeHint(), to = swipeTo(SWIPE.dx);
+  let p = Math.min(1, Math.abs(SWIPE.dx) / swipeNeed());
+  if (!to) p = Math.min(p, .5);                                            // 到头了：只探出一半
+  h.classList.toggle('r', SWIPE.dx < 0);
+  h.classList.toggle('end', !to);
+  h.classList.toggle('ready', !!to && p >= 1);
+  h.style.setProperty('--p', p.toFixed(3));
+  h.style.top = Math.max(80, Math.min(innerHeight - 120, y)) + 'px';
+  if (to) h.querySelector('b').textContent = ($('#nav-' + to + ' .lb') || {}).textContent || '';
+  h.classList.add('show');
+}
+function swipeEnd(cancel, ts) {
+  if (!SWIPE.on) return;
+  SWIPE.on = false;
+  const h = $('#swipe-hint');
+  if (h) h.classList.remove('show', 'ready');
+  if (cancel || !SWIPE.h) return;
+  const adx = Math.abs(SWIPE.dx), v = adx / Math.max(1, ts - SWIPE.t0), to = swipeTo(SWIPE.dx);
+  const far = adx >= swipeNeed() || (adx > 40 && v > .35);                // 拉够距离，或者快速一甩
+  if (to && far && adx > Math.abs(SWIPE.dy) * 1.6) go(to);
+}
+function initSwipe() {
+  if (initSwipe.done) return;
+  initSwipe.done = true;
+  document.addEventListener('touchstart', e => {
+    SWIPE.on = false;
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    if (t.clientX < SWIPE_EDGE || t.clientX > innerWidth - SWIPE_EDGE || swipeBlocked(e.target)) return;
+    Object.assign(SWIPE, { on: true, h: false, x0: t.clientX, y0: t.clientY, t0: e.timeStamp, dx: 0, dy: 0 });
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!SWIPE.on) return;
+    if (e.touches.length !== 1) return swipeEnd(true);
+    const t = e.touches[0];
+    SWIPE.dx = t.clientX - SWIPE.x0; SWIPE.dy = t.clientY - SWIPE.y0;
+    const ax = Math.abs(SWIPE.dx), ay = Math.abs(SWIPE.dy);
+    if (!SWIPE.h) {
+      if (ay > 12 && ay > ax) return swipeEnd(true);                      // 是在上下滚动
+      if (ax > 14 && ax > ay * 1.6) SWIPE.h = true; else return;
+    }
+    swipeShow(t.clientY);
+  }, { passive: true });
+  document.addEventListener('touchend', e => swipeEnd(false, e.timeStamp), { passive: true });
+  document.addEventListener('touchcancel', () => swipeEnd(true), { passive: true });
+}
+
 function init() {
   applyTheme();
   applyStaticFolds();
@@ -416,6 +487,7 @@ function init() {
     connectServer().catch(e => { if (!e.auth) setSync('err', e.message); });   // 密码不对时 api() 会弹出锁屏
   } else if (IN_APP) showLock(' ');   // App 第一次打开：填网址和密码
   if (IN_APP) appSetup();
+  initSwipe();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) onWake(); });
   window.addEventListener('online', () => flush());
   window.addEventListener('pageshow', e => { if (e.persisted) onWake(); });

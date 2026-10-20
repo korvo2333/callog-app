@@ -22,13 +22,16 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html { background-color: var(--bg); }
+/* 手机上只要有东西（飞过的纸飞机、放大的标题……）把页面撑宽，浏览器就会允许缩小、左右拖动，
+   点输入框时还会自动放大 → 横向超出的部分一律裁掉（clip 不会变成滚动容器，顶栏照样吸顶），并关掉双指 / 双击缩放 */
+html { background-color: var(--bg); touch-action: pan-x pan-y; }
 body {
   font-family: var(--font-body);
   background-color: var(--bg); background-image: var(--bg-img); background-size: var(--bg-size);
   color: var(--text);
   max-width: 560px; margin: 0 auto; min-height: 100dvh;
   font-size: 15px; line-height: 1.45;
+  overflow-x: clip;
 }
 button { font-family: inherit; color: inherit; cursor: pointer; }
 input, select, textarea { font-family: var(--sys); }
@@ -207,10 +210,10 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .ai-item.off { opacity: .45; }
 .ai-item-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .ai-item-top input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); flex-shrink: 0; }
-.ai-name { flex: 1; min-width: 0; background: none; border: none; border-bottom: 1px solid var(--border); color: var(--text); font-size: 15px; font-weight: 600; padding: 3px 0; outline: none; }
+.ai-name { flex: 1; min-width: 0; background: none; border: none; border-bottom: 1px solid var(--border); color: var(--text); font-size: 16px; font-weight: 600; padding: 3px 0; outline: none; }
 .ai-amt { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .ai-star { border: none; background: none; font-size: 16px; color: var(--muted); padding: 2px 4px; }
-.mi { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--r-ctl) - 2px); padding: 7px 2px; text-align: center; color: var(--text); font-size: 15px; outline: none; }
+.mi { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--r-ctl) - 2px); padding: 7px 2px; text-align: center; color: var(--text); font-size: 16px; outline: none; }
 .mi:focus { border-color: var(--accent); }
 .ai-total { font-size: 14px; color: var(--text); font-weight: 700; margin-top: 10px; }
 .ai-note { font-size: 12px; color: var(--text2); margin-top: 8px; line-height: 1.55; }
@@ -469,3 +472,19 @@ body:has(#sheet-bg.open .sheet.tall) .toast { bottom: calc(86px + env(safe-area-
 
 .banner { margin: 12px 16px 0; padding: 10px 14px; border-radius: var(--r-ctl); font-size: 13px;
   background: color-mix(in srgb, var(--warn) 16%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border)); color: var(--text); }
+
+/* 左右滑动换页：从屏幕边上探出来的小圆钮，拉够距离变成主题色，这时松手就换页 */
+#swipe-hint { position: fixed; z-index: 60; left: 0; top: 50%; width: 46px; height: 46px; margin-top: -23px; pointer-events: none;
+  display: grid; place-items: center; border-radius: 50%; background: var(--surface); color: var(--text2);
+  border: 1px solid var(--border); box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+  --p: 0; opacity: 0; transform: translateX(calc(-54px + var(--p) * 70px)) scale(calc(.55 + var(--p) * .45));
+  transition: opacity .16s, background-color .16s, color .16s, border-color .16s; }
+#swipe-hint.r { left: auto; right: 0; transform: translateX(calc(54px - var(--p) * 70px)) scale(calc(.55 + var(--p) * .45)); }
+#swipe-hint.r svg { transform: scaleX(-1); }
+#swipe-hint.show { opacity: 1; }
+#swipe-hint.show.end { opacity: .45; }          /* 已经是第一页 / 最后一页 */
+#swipe-hint.ready { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+#swipe-hint b { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  font-size: 11px; font-weight: 600; line-height: 1.5; color: var(--text2); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; opacity: 0; transition: opacity .16s; }
+#swipe-hint.ready b { opacity: 1; }

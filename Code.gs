@@ -119,7 +119,7 @@ const AI_SCHEMA = {
 function doGet() {
   return HtmlService.createHtmlOutput(loadHtml_())
     .setTitle('CalLog')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover')   // 不让手机浏览器缩放页面
     .addMetaTag('apple-mobile-web-app-capable', 'yes')
     .addMetaTag('mobile-web-app-capable', 'yes');
 }
