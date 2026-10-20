@@ -390,17 +390,17 @@ function appSetup() {
   appStatusBar();
 }
 function appStatusBar() {
-  const SB = IN_APP && window.Capacitor.Plugins && Capacitor.Plugins.StatusBar;
-  if (!SB) return;
+  const P = IN_APP && window.Capacitor.Plugins;
+  if (!P) return;
   const cs = getComputedStyle(document.documentElement);
   const c = document.createElement('canvas').getContext('2d');
   c.fillStyle = '#000000'; c.fillStyle = cs.getPropertyValue('--bg').trim();   // 任意颜色写法 → #rrggbb
   const hex = /^#[0-9a-f]{6}$/i.test(c.fillStyle) ? c.fillStyle : '#000000';
   const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
-  try {
-    SB.setBackgroundColor({ color: hex });
-    SB.setStyle({ style: r * .299 + g * .587 + b * .114 > 150 ? 'LIGHT' : 'DARK' });   // LIGHT = 深色字（浅色背景用）
-  } catch (e) { /* 系统不支持就算了 */ }
+  const style = r * .299 + g * .587 + b * .114 > 150 ? 'LIGHT' : 'DARK';   // LIGHT = 深色图标（浅色背景用）
+  // 新系统（安卓 15+）状态栏是透明的，页面顶栏直接延伸上去，只需要换图标深浅；旧系统再把状态栏涂成主题底色
+  [P.SystemBars, P.StatusBar].forEach(x => { try { if (x && x.setStyle) x.setStyle({ style }).catch(() => {}); } catch (e) { /* 不支持就算了 */ } });
+  try { if (P.StatusBar && P.StatusBar.setBackgroundColor) P.StatusBar.setBackgroundColor({ color: hex }).catch(() => {}); } catch (e) { /* 同上 */ }
 }
 
 function init() {
