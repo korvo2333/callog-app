@@ -1,0 +1,187 @@
+/* ═══════════════════════════════════════════════════════════
+   第四轮：学园 / 苍穹 两套主题加深（原创图形）
+   动效只用 transform / opacity / clip-path；系统开启「减少动态效果」时 style.css 会关掉全部动画和过渡
+   通用钩子：.nav 上的 --nav-i（当前标签序号，用来做滑动指示器）、卡片上的 --ci（进场时的先后顺序）、
+            根元素上的 --enter-ms（.entering 保持多久，给错落进场留时间）
+   ═══════════════════════════════════════════════════════════ */
+
+/* ═══════════════ 学园：晴空、纸飞机、斜切 ═══════════════ */
+[data-theme="academy"] { --enter-ms: 1450; }
+
+/* 主卡：顶部一层很淡的晴空 */
+[data-theme="academy"] #t-hero { background: linear-gradient(180deg, #e2f1ff 0, rgba(255,255,255,0) 128px), #fff; }
+/* 普通卡片：右上角两道细斜纹 */
+[data-theme="academy"] .card:not(#t-hero) {
+  background: linear-gradient(115deg, transparent 0 calc(100% - 34px), rgba(26,150,240,.09) calc(100% - 34px) calc(100% - 30px), transparent calc(100% - 30px) calc(100% - 25px), rgba(255,216,74,.35) calc(100% - 25px) calc(100% - 22px), transparent calc(100% - 22px)) right top / 54px 13px no-repeat, #fff;
+}
+[data-theme="academy"] #t-act, [data-theme="academy"] #t-body { background: #fff; }
+
+/* 底部导航：蓝色斜切底块 + 顶边黄色标记，切换时滑过去（底块回弹快、黄标慢半拍） */
+[data-theme="academy"] .nav button.on .ic { background: none; clip-path: none; }
+[data-theme="academy"] .nav::before, [data-theme="academy"] .nav::after { content: ""; position: absolute; left: 0; width: 20%; pointer-events: none;
+  transform: translateX(calc(var(--nav-i, 0) * 100%)); }
+[data-theme="academy"] .nav::before { top: 6px; height: 30px; background: rgba(26,150,240,.13);
+  clip-path: polygon(calc(50% - 19px) 0, calc(50% + 30px) 0, calc(50% + 19px) 100%, calc(50% - 30px) 100%);
+  transition: transform .5s cubic-bezier(.3,1.35,.45,1); }
+[data-theme="academy"] .nav::after { top: -1px; height: 4px; background: #ffd84a;
+  clip-path: polygon(calc(50% - 12px) 0, calc(50% + 18px) 0, calc(50% + 12px) 100%, calc(50% - 18px) 100%);
+  transition: transform .62s .05s cubic-bezier(.25,1.15,.4,1); }
+
+/* 顶栏：隔一会儿有一架纸飞机滑过（在文字后面） */
+[data-theme="academy"] .hd::before { content: ""; position: absolute; z-index: -1; left: 0; top: calc(env(safe-area-inset-top) + 8px); width: 92px; height: 30px; pointer-events: none;
+  background: __PLANE__ center / contain no-repeat; opacity: 0; animation: ac-plane 17s linear 2.5s infinite; }
+@keyframes ac-plane {
+  0% { transform: translate(-110px, 18px) rotate(4deg); opacity: 0; }
+  2% { opacity: .95; }
+  9% { transform: translate(calc(min(100vw, 560px) * .35), 2px) rotate(-3deg); }
+  15% { transform: translate(calc(min(100vw, 560px) * .68), 10px) rotate(2deg); opacity: .95; }
+  21% { transform: translate(calc(min(100vw, 560px) + 20px), -6px) rotate(-6deg); opacity: 0; }
+  100% { transform: translate(calc(min(100vw, 560px) + 20px), -6px); opacity: 0; }
+}
+
+/* 卡片进场：斜着从切换方向滑进来，一张接一张；标题前的蓝色斜条随后「啪」地立起来 */
+[data-theme="academy"] .scr.entering .card { animation: ac-card .6s calc(.4s + var(--ci, 0) * 55ms) cubic-bezier(.22,1,.36,1) backwards; }
+@keyframes ac-card { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 36px)) skewX(calc(var(--dir, 1) * -4deg)); } }
+[data-theme="academy"] .scr.entering .card-t::before { animation: ac-tick .42s calc(.55s + var(--ci, 0) * 55ms) cubic-bezier(.3,1.7,.5,1) backwards; transform-origin: 50% 100%; }
+@keyframes ac-tick { from { transform: skewX(-20deg) scaleY(0); } }
+
+/* 主卡：圆环后面一圈很淡的晴空光晕，缓慢呼吸 */
+[data-theme="academy"] .ring::before { content: ""; position: absolute; inset: -14px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(111,216,255,.22), rgba(111,216,255,0)); animation: ac-glow 4.2s ease-in-out infinite alternate; }
+@keyframes ac-glow { from { transform: scale(.9); opacity: .6; } to { transform: scale(1.05); opacity: 1; } }
+
+/* 按钮：主按钮隔几秒掠过一道光；按下时有「按进去」的手感 */
+[data-theme="academy"] .btn { transition: transform .16s cubic-bezier(.3,1.5,.5,1), box-shadow .16s, background-color .2s; }
+[data-theme="academy"] .btn:active { transform: translateY(2px) scale(.985); box-shadow: 0 0 0 #cfe0f1; }
+[data-theme="academy"] .btn.pri { position: relative; overflow: hidden; }
+[data-theme="academy"] .btn.pri::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 46%; pointer-events: none;
+  background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,.75) 50%, transparent 80%); transform: translateX(-120%) skewX(-20deg); animation: ac-shine 4.6s 1.2s ease-in-out infinite; }
+@keyframes ac-shine { 0% { transform: translateX(-120%) skewX(-20deg); } 22%, 100% { transform: translateX(330%) skewX(-20deg); } }
+[data-theme="academy"] .act-tog, [data-theme="academy"] .act-add, [data-theme="academy"] .pk-cat { transition: transform .16s cubic-bezier(.3,1.5,.5,1), box-shadow .16s, background-color .2s, border-color .2s; }
+[data-theme="academy"] .act-tog:active, [data-theme="academy"] .act-add:active, [data-theme="academy"] .pk-cat:active { transform: translateY(2px); box-shadow: 0 0 0 #cfe0f1; }
+[data-theme="academy"] .act-tog .act-sw i { transition: transform .32s cubic-bezier(.3,1.6,.5,1); }
+
+/* 弹层：三色饰带从左画出来，标题标签斜着刷开，内容依次浮上来 */
+[data-theme="academy"] .sheet { background: linear-gradient(160deg, rgba(90,190,255,.14), transparent 40%), var(--surface); transition: transform .42s cubic-bezier(.2,1,.3,1); }
+[data-theme="academy"] .sheet::before { content: ""; display: block; position: sticky; top: -8px; z-index: 3; height: 5px; margin: -8px -18px 3px;
+  background: linear-gradient(90deg, #1a96f0 0 46%, #6fd8ff 46% 74%, #ffd84a 74%); transform-origin: 0 50%; }
+[data-theme="academy"] .ov-bg.open .sheet::before { animation: ac-draw .55s .1s cubic-bezier(.6,0,.2,1) backwards; }
+@keyframes ac-draw { from { transform: scaleX(0); } }
+[data-theme="academy"] .ov-bg.open .sheet-t span { animation: ac-tag .42s .16s cubic-bezier(.2,.9,.3,1) backwards; }
+@keyframes ac-tag { from { clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); } to { clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); } }
+[data-theme="academy"] .ov-bg.open #sheet-body > * { animation: ac-up .42s cubic-bezier(.2,.9,.3,1) backwards; }
+[data-theme="academy"] .ov-bg.open #sheet-body > :nth-child(1) { animation-delay: .14s; } [data-theme="academy"] .ov-bg.open #sheet-body > :nth-child(2) { animation-delay: .18s; }
+[data-theme="academy"] .ov-bg.open #sheet-body > :nth-child(3) { animation-delay: .22s; } [data-theme="academy"] .ov-bg.open #sheet-body > :nth-child(n+4) { animation-delay: .26s; }
+@keyframes ac-up { from { opacity: 0; transform: translateY(10px); } }
+/* 对话框：弹一下；提示条：从左边斜着刷出来 */
+[data-theme="academy"] .dlg-bg.open { animation: ac-fade .2s ease-out; }
+@keyframes ac-fade { from { opacity: 0; } }
+[data-theme="academy"] .dlg-bg.open .dlg { animation: ac-pop .38s cubic-bezier(.3,1.45,.5,1); }
+@keyframes ac-pop { from { opacity: 0; transform: translateY(14px) scale(.92) skewX(-3deg); } }
+[data-theme="academy"] .toast.on { animation: ac-toast .4s cubic-bezier(.2,.9,.3,1); }
+@keyframes ac-toast { from { clip-path: polygon(8px 0, 8px 0, 0 100%, 0 100%); } to { clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); } }
+
+/* 展开折叠卡：内容从下面斜着滑上来 */
+[data-theme="academy"] .opening > .fold > .fold-in > * { animation: ac-unfold .38s cubic-bezier(.2,.9,.3,1) backwards; }
+@keyframes ac-unfold { from { opacity: 0; transform: translateY(8px) skewX(-2deg); } }
+
+/* 滚动：边距里几个小几何跟着滚动以不同速度漂（视差），一边转 */
+[data-theme="academy"] #decor > i:nth-child(-n+3) { display: block; will-change: transform; }
+[data-theme="academy"] #decor > i:nth-child(1) { left: 3px; top: 40%; width: 11px; height: 10px; background: __AC_TRI__ center / contain no-repeat;
+  transform: translateY(calc(var(--sy, 0) * -.22px)) rotate(calc(var(--sy, 0) * .25deg)); }
+[data-theme="academy"] #decor > i:nth-child(2) { right: 3px; top: 62%; width: 9px; height: 9px; background: __AC_PLUS__ center / contain no-repeat;
+  transform: translateY(calc(var(--sy, 0) * -.4px)) rotate(calc(var(--sy, 0) * -.35deg)); }
+[data-theme="academy"] #decor > i:nth-child(3) { left: 4px; top: 86%; width: 9px; height: 9px; background: __AC_RING__ center / contain no-repeat;
+  transform: translateY(calc(var(--sy, 0) * -.3px)); }
+
+
+/* ═══════════════ 苍穹：天空、金框、宝珠 ═══════════════ */
+[data-theme="skyward"] { --enter-ms: 1700; }
+
+/* 卡片：四角各一颗小金钉（静态） */
+[data-theme="skyward"] {
+  --card-bg: __SK_STUD__ left 5px top 5px / 7px 7px no-repeat, __SK_STUD__ right 5px top 5px / 7px 7px no-repeat,
+             __SK_STUD__ left 5px bottom 5px / 7px 7px no-repeat, __SK_STUD__ right 5px bottom 5px / 7px 7px no-repeat, #fffaf0;
+}
+
+/* 底部导航：一颗宝石沿着金色边线滑到当前标签，后面拖着一段光 */
+[data-theme="skyward"] .nav button.on::before { display: none; }
+[data-theme="skyward"] .nav::before, [data-theme="skyward"] .nav::after { content: ""; position: absolute; left: 0; width: 20%; pointer-events: none;
+  transform: translateX(calc(var(--nav-i, 0) * 100%)); }
+[data-theme="skyward"] .nav::before { top: -2px; height: 3px; background: radial-gradient(closest-side, rgba(240,205,120,.95), rgba(240,205,120,0));
+  transition: transform .85s cubic-bezier(.4,0,.2,1); }
+[data-theme="skyward"] .nav::after { top: -8px; height: 16px; background: __SK_GEM__ center / 15px 15px no-repeat;
+  transition: transform .6s cubic-bezier(.45,0,.15,1); animation: sk-gem-glow 3.2s ease-in-out infinite; }
+@keyframes sk-gem-glow { 0%, 100% { filter: drop-shadow(0 0 0 rgba(255,220,130,0)); } 50% { filter: drop-shadow(0 0 4px rgba(255,214,110,.95)); } }
+
+/* 顶栏：偶尔有一小群鸟飞过，翅膀一上一下（在文字后面） */
+[data-theme="skyward"] .hd::before { content: ""; position: absolute; z-index: -1; left: 0; top: calc(env(safe-area-inset-top) + 6px); width: 44px; height: 22px; pointer-events: none;
+  background: __SK_BIRDS__ 0 0 / 88px 22px no-repeat; opacity: 0;
+  animation: sk-flap .42s steps(1) infinite, sk-flock 23s linear 4s infinite; }
+@keyframes sk-flap { 0% { background-position: 0 0; } 50% { background-position: -44px 0; } }
+@keyframes sk-flock {
+  0% { transform: translate(calc(min(100vw, 560px) + 10px), 16px); opacity: 0; }
+  2% { opacity: .9; }
+  14% { transform: translate(calc(min(100vw, 560px) * .45), 4px); }
+  27% { transform: translate(-60px, 12px); opacity: .9; }
+  29%, 100% { transform: translate(-60px, 12px); opacity: 0; }
+}
+
+/* 卡片进场：云散开之后，一张张轻轻「浮上来」；标题的金线从左边描出来，宝石转一圈落位 */
+[data-theme="skyward"] .scr.entering .card { animation: sk-card .6s calc(.55s + var(--ci, 0) * 60ms) cubic-bezier(.2,.9,.25,1) backwards; transform-origin: 50% 0; }
+@keyframes sk-card { from { opacity: 0; transform: translateY(18px) scale(.985); } }
+[data-theme="skyward"] .scr.entering .card-t::after { animation: sk-line .6s calc(.65s + var(--ci, 0) * 60ms) cubic-bezier(.2,.8,.2,1) backwards; transform-origin: 0 50%; }
+@keyframes sk-line { from { transform: scaleX(0); } }
+[data-theme="skyward"] .scr.entering .card-t::before { animation: sk-gem-in .6s calc(.6s + var(--ci, 0) * 60ms) cubic-bezier(.3,1.5,.5,1) backwards; }
+@keyframes sk-gem-in { from { transform: rotate(-180deg) scale(0); } }
+
+/* 主卡：宝珠圆环后面有一圈慢慢转的阳光 */
+[data-theme="skyward"] .ring::before { content: ""; position: absolute; inset: -30px; border-radius: 50%; pointer-events: none;
+  background: repeating-conic-gradient(rgba(255,226,150,.38) 0 5deg, rgba(255,226,150,0) 5deg 15deg);
+  -webkit-mask: radial-gradient(closest-side, transparent 52%, #000 64%, transparent 100%); mask: radial-gradient(closest-side, transparent 52%, #000 64%, transparent 100%);
+  animation: sk-rays 70s linear infinite; }
+@keyframes sk-rays { to { transform: rotate(360deg); } }
+
+/* 按钮：主按钮上隔几秒掠过一道金光；按下时轻轻一沉 */
+[data-theme="skyward"] .btn { transition: transform .18s cubic-bezier(.3,1.5,.5,1), filter .18s, background-color .2s; }
+[data-theme="skyward"] .btn:active { transform: scale(.97); filter: brightness(.97); }
+[data-theme="skyward"] .btn.pri { position: relative; overflow: hidden; }
+[data-theme="skyward"] .btn.pri::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none;
+  background: linear-gradient(100deg, transparent 15%, rgba(255,236,180,.6) 50%, transparent 85%); transform: translateX(-130%); animation: sk-shine 5.2s 1.5s ease-in-out infinite; }
+@keyframes sk-shine { 0% { transform: translateX(-130%); } 24%, 100% { transform: translateX(360%); } }
+[data-theme="skyward"] .act-tog, [data-theme="skyward"] .act-add, [data-theme="skyward"] .pk-cat { transition: transform .18s cubic-bezier(.3,1.5,.5,1), background-color .2s, border-color .2s; }
+[data-theme="skyward"] .act-tog:active, [data-theme="skyward"] .act-add:active, [data-theme="skyward"] .pk-cat:active { transform: scale(.97); }
+[data-theme="skyward"] .act-tog .act-sw i { transition: transform .34s cubic-bezier(.3,1.5,.5,1); }
+
+/* 弹层：顶上的菱形把手亮一下，标题两边的花饰转进来，内容依次浮现 */
+[data-theme="skyward"] .sheet { transition: transform .46s cubic-bezier(.2,1,.3,1); }
+[data-theme="skyward"] .ov-bg.open .grab { animation: sk-grab .9s .15s ease-out; }
+@keyframes sk-grab { 0% { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px #c99a3a; } 40% { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px #c99a3a, 0 0 14px 6px rgba(255,214,110,.75); } 100% { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px #c99a3a; } }
+[data-theme="skyward"] .sheet-t span::before, [data-theme="skyward"] .sheet-t span::after { display: inline-block; }
+[data-theme="skyward"] .ov-bg.open .sheet-t span::before { animation: sk-orn-l .6s .14s cubic-bezier(.3,1.4,.5,1) backwards; }
+[data-theme="skyward"] .ov-bg.open .sheet-t span::after { animation: sk-orn-r .6s .14s cubic-bezier(.3,1.4,.5,1) backwards; }
+@keyframes sk-orn-l { from { opacity: 0; transform: translateX(16px) rotate(-180deg) scale(.4); } }
+@keyframes sk-orn-r { from { opacity: 0; transform: translateX(-16px) rotate(180deg) scale(.4); } }
+[data-theme="skyward"] .ov-bg.open #sheet-body > * { animation: sk-up .5s cubic-bezier(.2,.9,.3,1) backwards; }
+[data-theme="skyward"] .ov-bg.open #sheet-body > :nth-child(1) { animation-delay: .16s; } [data-theme="skyward"] .ov-bg.open #sheet-body > :nth-child(2) { animation-delay: .21s; }
+[data-theme="skyward"] .ov-bg.open #sheet-body > :nth-child(3) { animation-delay: .26s; } [data-theme="skyward"] .ov-bg.open #sheet-body > :nth-child(n+4) { animation-delay: .31s; }
+@keyframes sk-up { from { opacity: 0; transform: translateY(12px); } }
+/* 对话框：放大落定时金框亮一圈；提示条：升起时一道金光扫过 */
+[data-theme="skyward"] .dlg-bg.open { animation: sk-fade .24s ease-out; }
+@keyframes sk-fade { from { opacity: 0; } }
+[data-theme="skyward"] .dlg-bg.open .dlg { animation: sk-dlg .5s cubic-bezier(.2,1.2,.4,1); }
+@keyframes sk-dlg { 0% { opacity: 0; transform: scale(.9) translateY(10px); } 60% { opacity: 1; } 100% { transform: none; } }
+[data-theme="skyward"] .toast { overflow: hidden; }
+[data-theme="skyward"] .toast::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none; opacity: 0;
+  background: linear-gradient(100deg, transparent 15%, rgba(255,226,150,.45) 50%, transparent 85%); }
+[data-theme="skyward"] .toast.on::after { animation: sk-toast-shine 1s .18s ease-in-out; }
+@keyframes sk-toast-shine { from { opacity: 1; transform: translateX(-120%); } to { opacity: 1; transform: translateX(320%); } }
+
+/* 展开折叠卡：内容轻轻浮上来 */
+[data-theme="skyward"] .opening > .fold > .fold-in > * { animation: sk-up .42s cubic-bezier(.2,.9,.3,1) backwards; }
+
+/* 滚动：边距里两缕云丝以不同速度后退（视差），同时自己慢慢飘 */
+[data-theme="skyward"] #decor > i:nth-child(-n+2) { display: block; width: 240px; height: 46px; background: __SK_WISP__ center / contain no-repeat; will-change: transform; }
+[data-theme="skyward"] #decor > i:nth-child(1) { left: -150px; top: 46%; opacity: .9; translate: 0 calc(var(--sy, 0) * -.18px); animation: sk-wisp 26s ease-in-out infinite alternate; }
+[data-theme="skyward"] #decor > i:nth-child(2) { right: -160px; top: 74%; opacity: .75; translate: 0 calc(var(--sy, 0) * -.34px); animation: sk-wisp 33s ease-in-out infinite alternate-reverse; }
+@keyframes sk-wisp { from { transform: translateX(-24px); } to { transform: translateX(24px); } }

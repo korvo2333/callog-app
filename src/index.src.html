@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="ios">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e0f0e">
+<title>CalLog</title>
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<div id="decor" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+<!-- ══════════ 今日 ══════════ -->
+<section id="scr-today" class="scr">
+  <div class="hd">
+    <span class="brand" data-word="1"></span>
+    <button class="hd-btn ghost" onclick="shiftDay(-1)" aria-label="前一天">‹</button>
+    <button class="date-btn" onclick="gotoToday()"><span id="t-date"></span><small id="t-sub"></small></button>
+    <button class="hd-btn ghost" onclick="shiftDay(1)" aria-label="后一天">›</button>
+    <button class="pill" id="sync-pill" onclick="syncNow(true)" aria-label="同步状态"></button>
+  </div>
+
+  <div class="banner" id="local-banner" style="display:none">本机预览 · 不同步</div>
+  <div class="card" id="t-hero"><div class="fx" aria-hidden="true"><i></i><i></i><i></i></div><div id="t-hero-in"></div><div class="rx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+  <div class="card tight act" id="t-act"></div>
+  <div class="card tight" id="t-body"></div>
+
+  <!-- 输入区：静态，不随刷新重建 -->
+  <div class="card composer">
+    <div class="seg" id="c-meal"></div>
+    <textarea class="in" id="c-text" rows="1" style="margin-top:10px" placeholder="吃了什么"
+      oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    <div class="c-img" id="c-img"><img id="c-img-el" alt=""><button onclick="clearComposeImage()" aria-label="移除图片">×</button></div>
+    <input type="file" id="c-cam" accept="image/*" capture="environment" hidden onchange="pickImage(event)">
+    <input type="file" id="c-gal" accept="image/*" hidden onchange="pickImage(event)">
+    <div class="c-tools">
+      <button class="btn icon" onclick="$('#c-cam').click()" aria-label="拍照" data-icon="camera"></button>
+      <button class="btn icon" onclick="$('#c-gal').click()" aria-label="相册" data-icon="image"></button>
+      <button class="btn pri send" onclick="sendAI()">AI 识别</button>
+    </div>
+    <div class="c-more">
+      <button class="link" onclick="openManual()">手动添加</button>
+      <button class="link" onclick="openPicker()">食物库</button>
+      <button class="link" onclick="openLabel('log')">拍成分表</button>
+    </div>
+  </div>
+
+  <div id="t-ai"></div>
+  <div class="card" id="t-list"></div>
+</section>
+
+<!-- ══════════ 本周 ══════════ -->
+<section id="scr-week" class="scr">
+  <div class="hd">
+    <span class="brand"></span>
+    <button class="hd-btn ghost" onclick="shiftWeek(-1)" aria-label="上一周">‹</button>
+    <button class="date-btn" onclick="shiftWeek(0)"><span id="w-title"></span><small id="w-sub"></small></button>
+    <button class="hd-btn ghost" onclick="shiftWeek(1)" aria-label="下一周">›</button>
+  </div>
+  <div id="w-content"></div>
+</section>
+
+<!-- ══════════ 身体 ══════════ -->
+<section id="scr-body" class="scr">
+  <div class="hd"><span class="brand"></span><h1>身体</h1></div>
+  <div class="card" data-fold="body:form" data-static="1">
+    <div class="card-t fold-t" role="button" tabindex="0" aria-expanded="true" onclick="toggleFold(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFold(this)}">记录<span id="b-state"></span><i class="fold-ic" aria-hidden="true"></i></div>
+    <div class="fold"><div class="fold-in">
+    <div class="row">
+      <input class="in grow" type="date" id="b-date" onchange="loadBodyForm()">
+    </div>
+    <div class="grid4" style="grid-template-columns:repeat(3,1fr);margin-top:10px">
+      <div><label>体重 kg</label><input class="in" id="b-w" type="number" step="0.1" inputmode="decimal"></div>
+      <div><label>体脂 %</label><input class="in" id="b-bf" type="number" step="0.1" inputmode="decimal"></div>
+      <div><label>肌肉量 kg</label><input class="in" id="b-muscle" type="number" step="0.1" inputmode="decimal"></div>
+    </div>
+    <input class="in" id="b-note" placeholder="备注" style="margin-top:10px">
+    <div class="actions">
+      <button class="btn danger" id="b-del" onclick="deleteBody()" style="display:none;flex:0 0 auto">删除</button>
+      <button class="btn pri" onclick="saveBody()">保存</button>
+    </div>
+    </div></div>
+  </div>
+  <div id="b-content"></div>
+</section>
+
+<!-- ══════════ 食物库 ══════════ -->
+<section id="scr-foods" class="scr">
+  <div class="hd">
+    <span class="brand"></span><h1>食物库</h1>
+    <button class="hd-btn" onclick="openCats()">分类</button>
+    <button class="hd-btn" onclick="editFood('')" style="color:var(--accent-text);font-weight:700">＋ 新建</button>
+  </div>
+  <div style="padding:12px 16px 0">
+    <input class="in" id="f-q" type="search" placeholder="搜索" oninput="renderFoods()">
+  </div>
+  <div class="chips scroll" id="f-cats" style="padding:10px 16px 0"></div>
+  <div class="f-sort" id="f-sort" role="group" aria-label="排序"></div>
+  <div class="card" id="f-list"></div>
+</section>
+
+<!-- ══════════ 设置 ══════════ -->
+<section id="scr-settings" class="scr">
+  <div class="hd"><span class="brand"></span><h1>设置</h1></div>
+  <div id="s-content"></div>
+</section>
+
+<!-- 转场装饰层（各主题自己的转场动画） -->
+<div id="tx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i>
+  <svg class="tx-svg" viewBox="0 0 390 844" preserveAspectRatio="none"><path class="p1" pathLength="100"/><path class="p2" pathLength="100"/><path class="p3" pathLength="100"/></svg></div>
+
+<nav class="nav">
+  <button id="nav-today" onclick="go('today')"><span class="ic"></span><span class="lb">今日</span></button>
+  <button id="nav-week" onclick="go('week')"><span class="ic"></span><span class="lb">本周</span></button>
+  <button id="nav-body" onclick="go('body')"><span class="ic"></span><span class="lb">身体</span></button>
+  <button id="nav-foods" onclick="go('foods')"><span class="ic"></span><span class="lb">食物库</span></button>
+  <button id="nav-settings" onclick="go('settings')"><span class="ic"></span><span class="lb">设置</span></button>
+</nav>
+
+<!-- 拍营养成分表用（放在页面外层：在今日、食物库都能用） -->
+<input type="file" id="lb-cam" accept="image/*" capture="environment" hidden onchange="pickLabel(event)">
+<input type="file" id="lb-gal" accept="image/*" hidden onchange="pickLabel(event)">
+<div class="ov-bg" id="sheet-bg" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="sheet-t"><span id="sheet-title"></span><button onclick="closeSheet()" aria-label="关闭">×</button></div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<!-- 确认 / 输入对话框（代替系统 confirm / prompt） -->
+<div class="dlg-bg" id="dlg-bg">
+  <div class="dlg">
+    <div class="dlg-msg" id="dlg-msg"></div>
+    <input class="in" id="dlg-in" style="margin-top:12px">
+    <div class="actions"><button class="btn" id="dlg-cancel">取消</button><button class="btn pri" id="dlg-ok">确定</button></div>
+  </div>
+</div>
+
+<!-- 密码锁屏 -->
+<div class="lock" id="lock">
+  <div class="lock-box">
+    <div class="lock-logo"><span class="brand" data-word="1"></span></div>
+    <input class="in" id="lock-url" type="url" inputmode="url" autocomplete="off" placeholder="Apps Script 网址（…/exec）" style="display:none;margin-bottom:8px"
+      onchange="const p=parseApiUrl(this.value);if(p&&p.token&&!$('#lock-in').value)$('#lock-in').value=p.token">
+    <input class="in" id="lock-in" type="password" autocomplete="current-password" placeholder="密码" onkeydown="if(event.key==='Enter')unlock()">
+    <div id="lock-err" class="hint" style="color:var(--bad);min-height:18px"></div>
+    <button class="btn pri block" onclick="unlock()">进入</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toast-msg"></span><button id="toast-act"></button></div>
+
+<script>
+/*__JS__*/
+</script>
+</body>
+</html>

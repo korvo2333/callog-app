@@ -1,0 +1,13 @@
+{
+  "appId": "app.callog.korvo",
+  "appName": "CalLog",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#f2f2f7"
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true },
+    "SplashScreen": { "launchShowDuration": 0 }
+  }
+}

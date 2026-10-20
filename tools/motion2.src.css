@@ -1,0 +1,452 @@
+/* ═══════════════════════════════════════════════════════════
+   第三轮动效：每个主题 3 个「长在主题里」的动画
+   ① 主题转场（新页面怎么出现）  ② 记录食物时主卡的反应  ③ 跟着滚动动的元素
+   转场时旧页面固定在原位置垫在下面，新页面按主题方式盖上来；#tx 是转场装饰层（在底部导航下面）
+   ═══════════════════════════════════════════════════════════ */
+
+/* ───────── 引擎 ───────── */
+.scr { position: relative; z-index: 1; }
+.scr.entering { background-color: var(--bg); background-image: var(--bg-img); background-size: var(--bg-size); min-height: 100vh; }
+.scr.leaving { display: block; position: fixed; left: 0; right: 0; max-width: 560px; margin: 0 auto; z-index: 0; pointer-events: none;
+  animation: var(--leave, leave-fade) var(--leave-dur, var(--page-dur, .38s)) var(--leave-ease, ease-out) forwards; }
+@keyframes leave-fade { to { opacity: 0; } }
+@keyframes leave-stay { to { opacity: 1; } }
+@keyframes leave-now { to { opacity: 0; } }
+@keyframes cover-in { 0%, 44% { opacity: 0; } 45%, 100% { opacity: 1; } }
+@keyframes cover-out { 0%, 44% { opacity: 1; } 45%, 100% { opacity: 0; } }
+
+/* 圆形展开：新页面从点的那个导航按钮处「打开」，旧页面同步被挖空 */
+@property --txr { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@keyframes iris-open { from { --txr: 0px; } to { --txr: var(--tx-r); } }
+[data-theme="steam"] .scr.entering, [data-theme="magic"] .scr.entering, [data-theme="nature"] .scr.entering, [data-theme="starwild"] .scr.entering, [data-theme="candy"] .scr.entering { clip-path: circle(var(--txr) at var(--tx-x) var(--tx-y)); }
+[data-theme="steam"] .scr.leaving, [data-theme="magic"] .scr.leaving, [data-theme="nature"] .scr.leaving, [data-theme="starwild"] .scr.leaving, [data-theme="candy"] .scr.leaving { -webkit-mask: radial-gradient(circle at var(--tx-x) var(--tx-y), transparent var(--txr), #000 calc(var(--txr) + 1px));
+  mask: radial-gradient(circle at var(--tx-x) var(--tx-y), transparent var(--txr), #000 calc(var(--txr) + 1px)); }
+[data-theme="steam"], [data-theme="magic"], [data-theme="nature"], [data-theme="starwild"], [data-theme="candy"] {
+  --page-in: iris-open; --page-fill: both; --leave: iris-open; --leave-ease: var(--page-ease);
+}
+
+:is([data-theme="sport"], [data-theme="academy"], [data-theme="industry"], [data-theme="expedition"], [data-theme="skyward"]) .scr.entering.solo { animation: none; }
+
+#tx { position: fixed; inset: 0; z-index: 45; pointer-events: none; overflow: hidden; display: none; max-width: 560px; margin: 0 auto; }
+#tx.run { display: block; }
+#tx > i { position: absolute; display: none; }
+#tx .tx-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: none; overflow: visible; }
+#tx .tx-svg path { fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+/* 跟着展开边缘走的圆环：元素大小 = 圆环半径换算，缩放曲线和展开同步 */
+@keyframes tx-ring { from { transform: translate(-50%, -50%) scale(0) rotate(0); } 88% { opacity: 1; } to { transform: translate(-50%, -50%) scale(1) rotate(var(--ring-rot, 120deg)); opacity: 0; } }
+.tx-ring { left: var(--tx-x); top: var(--tx-y); width: calc(var(--tx-r) * var(--ring-k, 2.1)); height: calc(var(--tx-r) * var(--ring-k, 2.1)); }
+@keyframes tx-burst { from { transform: translate(-50%, -50%) rotate(var(--a)) translateX(0) scale(.4); opacity: 1; } to { transform: translate(-50%, -50%) rotate(var(--a)) translateX(var(--d, 140px)) scale(1); opacity: 0; } }
+
+/* 记录反应层 */
+#t-hero > .rx { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+#t-hero > .rx i { position: absolute; display: none; }
+#t-hero > .rx::after { content: attr(data-n) " kcal"; position: absolute; left: 90px; top: 4px; opacity: 0; white-space: nowrap;
+  font: 700 14px/1 var(--font-num); font-style: var(--num-style); color: var(--accent-text, var(--accent)); }
+#t-hero.react > .rx::after { animation: rx-label 1.7s ease-out; }
+@keyframes rx-label { 0% { opacity: 0; transform: translate(-50%, 8px); } 14% { opacity: 1; transform: translate(-50%, 0); } 72% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -16px); } }
+#t-hero.react > .rx i { display: block; left: 90px; top: 90px; }
+@keyframes rx-burst { from { transform: translate(-50%, -50%) rotate(var(--a)) translateX(10px) scale(.3) rotate(0); opacity: 1; }
+  to { transform: translate(-50%, -50%) rotate(var(--a)) translateX(var(--d, 74px)) scale(1) rotate(200deg); opacity: 0; } }
+.rx i:nth-child(1) { --a: -90deg; } .rx i:nth-child(2) { --a: -30deg; } .rx i:nth-child(3) { --a: 30deg; } .rx i:nth-child(4) { --a: 90deg; }
+.rx i:nth-child(5) { --a: 150deg; } .rx i:nth-child(6) { --a: 210deg; } .rx i:nth-child(7) { --a: -60deg; } .rx i:nth-child(8) { --a: 120deg; }
+#tx > i:nth-child(1) { --a: -100deg; } #tx > i:nth-child(2) { --a: -60deg; } #tx > i:nth-child(3) { --a: -125deg; } #tx > i:nth-child(4) { --a: -35deg; } #tx > i:nth-child(5) { --a: -150deg; } #tx > i:nth-child(6) { --a: -80deg; }
+
+/* 滚动装饰层（在页面下面，只出现在边距和卡片间隙里） */
+#decor { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; max-width: 560px; margin: 0 auto; }
+#decor > i { position: absolute; display: none; }
+
+/* ═══════════════ 1. 竞技 ═══════════════
+   转场：转播式斜切色带横扫过屏幕，中间闪过闪电标志
+   反应：一道橙色速度带斜劈过圆环，「+191」像记分牌一样弹出来
+   滚动：顶栏底部的橙线变成速度表——滑得越快越长，停下回落 */
+[data-theme="sport"] { --page-in: cover-in; --page-dur: .7s; --page-ease: linear; --leave: cover-out; --leave-ease: linear; }
+[data-theme="sport"] #tx[data-dir="b"], [data-theme="academy"] #tx[data-dir="b"] { transform: scaleX(-1); }
+[data-theme="expedition"] #tx[data-dir="b"] .tx-svg { transform: scaleX(-1); }
+[data-theme="sport"] #tx.run > i:nth-child(-n+2) { display: block; top: -10%; height: 120%; width: 170%; left: 0; transform: translateX(110%) skewX(-18deg); }
+[data-theme="sport"] #tx.run > i:nth-child(1) { background: #f26a2a; animation: sweep .62s cubic-bezier(.5,0,.5,1) both; }
+[data-theme="sport"] #tx.run > i:nth-child(2) { background: #19243b; border-left: 6px solid #edf1f8; animation: sweep .62s .07s cubic-bezier(.5,0,.5,1) both; }
+@keyframes sweep { from { transform: translateX(110%) skewX(-18deg); } to { transform: translateX(-190%) skewX(-18deg); } }
+[data-theme="sport"] #tx.run > i:nth-child(3) { display: block; left: 50%; top: 45%; width: 64px; height: 76px; background: __BOLT__ center / contain no-repeat; animation: bolt .62s .07s ease-out both; }
+@keyframes bolt { 0%, 22% { transform: translate(-50%, -50%) scale(0) skewX(-12deg); opacity: 0; } 40% { transform: translate(-50%, -50%) scale(1.15) skewX(-12deg); opacity: 1; } 56% { transform: translate(-50%, -50%) scale(1) skewX(-12deg); opacity: 1; } 70%, 100% { opacity: 0; transform: translate(-150%, -50%) scale(1) skewX(-12deg); } }
+[data-theme="sport"] #t-hero.react > .rx i:nth-child(1) { left: -20px; top: 60px; width: 240px; height: 26px; background: linear-gradient(90deg, transparent, rgba(242,106,42,.85) 60%, transparent);
+  transform: skewX(-24deg) scaleX(0); transform-origin: left; animation: swoosh .55s ease-out; opacity: 0; mix-blend-mode: screen; }
+@keyframes swoosh { 0% { transform: skewX(-24deg) scaleX(0); opacity: 1; } 60% { transform: skewX(-24deg) scaleX(1); opacity: .9; } 100% { transform: skewX(-24deg) scaleX(1) translateX(60px); opacity: 0; } }
+[data-theme="sport"] #t-hero > .rx::after { font-size: 22px; color: #f26a2a; font-weight: 800; }
+[data-theme="sport"] #t-hero.react > .rx::after { animation: score 1.5s cubic-bezier(.3,1.6,.5,1); }
+@keyframes score { 0% { opacity: 0; transform: translate(-50%, 0) scale(.4) skewX(-10deg); } 18% { opacity: 1; transform: translate(-50%, 0) scale(1.15) skewX(-10deg); } 30% { transform: translate(-50%, 0) scale(1) skewX(-10deg); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -10px) scale(1) skewX(-10deg); } }
+[data-theme="sport"] .hd::after { transform-origin: 0 50%; transform: scaleX(clamp(.25, calc(.25 + (var(--sv, 0) * var(--sv, 0)) * .006), 1)); transition: transform .35s ease-out; }
+
+/* ═══════════════ 2. 手帐 ═══════════════
+   转场：旧的一页像纸一样从右往左翻过去，露出下一页
+   反应：一个红色手写勾「画」出来，周围冒出两颗手绘星星
+   滚动：左边距里有一支铅笔，你往下滑它就往下画一条虚线 */
+[data-theme="planner"] { --page-in: pg-under; --page-dur: .62s; --leave: leave-turn; --leave-dur: .62s; --leave-ease: cubic-bezier(.45,0,.55,1); }
+@keyframes pg-under { from { filter: brightness(.8); } }
+/* 点右边的标签（往后翻）：当前这页从右侧掀起，绕左边的装订线翻过去，露出下一页 */
+[data-theme="planner"] .scr.leaving { z-index: 2; transform-origin: 0 calc(var(--y0, 0px) + 50vh); background: var(--bg); background-image: var(--bg-img); background-size: var(--bg-size); }
+@keyframes leave-turn { 0% { transform: perspective(1600px) rotateY(0); filter: brightness(1); box-shadow: 0 0 0 rgba(34,48,74,0); }
+  45% { box-shadow: 24px 0 46px rgba(34,48,74,.32); }
+  100% { transform: perspective(1600px) rotateY(-100deg); filter: brightness(.55); box-shadow: 24px 0 46px rgba(34,48,74,0); } }
+/* 点左边的标签（往前翻）：上一页从左边翻回来，盖在当前页上 */
+[data-theme="planner"] .scr.leaving[data-dir="b"] { z-index: 0; --leave: leave-shade; }
+@keyframes leave-shade { to { filter: brightness(.8); } }
+[data-theme="planner"] .scr.entering[data-dir="b"] { z-index: 2; transform-origin: 0 50vh; --page-in: turn-back; --page-ease: cubic-bezier(.45,0,.55,1); }
+@keyframes turn-back { 0% { transform: perspective(1600px) rotateY(-100deg); filter: brightness(.55); box-shadow: 24px 0 46px rgba(34,48,74,0); }
+  55% { box-shadow: 24px 0 46px rgba(34,48,74,.3); }
+  100% { transform: perspective(1600px) rotateY(0); filter: brightness(1); box-shadow: 0 0 0 rgba(34,48,74,0); } }
+[data-theme="planner"] #t-hero.react > .rx i:nth-child(1) { left: 132px; top: 18px; width: 42px; height: 35px; background: __CHECK__ center / contain no-repeat; animation: draw-check .9s ease-out both; }
+@keyframes draw-check { 0% { clip-path: inset(0 100% 0 0); opacity: 1; } 35% { clip-path: inset(0 0 0 0); } 80% { opacity: 1; } 100% { opacity: 0; clip-path: inset(0 0 0 0); } }
+[data-theme="planner"] #t-hero.react > .rx i:nth-child(2), [data-theme="planner"] #t-hero.react > .rx i:nth-child(3) { width: 16px; height: 16px; background: __DOODLE_STAR__ center / contain no-repeat; animation: doodle .9s .2s ease-out both; }
+[data-theme="planner"] #t-hero.react > .rx i:nth-child(2) { left: 22px; top: 12px; }
+[data-theme="planner"] #t-hero.react > .rx i:nth-child(3) { left: 150px; top: 138px; animation-delay: .32s; }
+@keyframes doodle { 0% { transform: scale(0) rotate(-40deg); } 50% { transform: scale(1.3) rotate(10deg); } 80% { transform: scale(1) rotate(0); opacity: 1; } 100% { opacity: 0; } }
+[data-theme="planner"] #t-hero > .rx::after { font-family: "Caveat", var(--sys); font-size: 22px; color: #e0454f; font-style: normal; }
+[data-theme="planner"] #decor > i:nth-child(1) { display: block; left: 6px; top: 70px; width: 2px; height: calc(min(var(--sy, 0) * .5px, 100vh - 160px));
+  background: repeating-linear-gradient(#8a94a9 0 5px, transparent 5px 9px); opacity: .7; }
+[data-theme="planner"] #decor > i:nth-child(2) { display: block; left: 1px; top: calc(52px + min(var(--sy, 0) * .5px, 100vh - 160px)); width: 12px; height: 40px; background: __PENCIL__ center / contain no-repeat; transform: rotate(8deg); }
+
+/* ═══════════════ 3. 终端 ═══════════════
+   转场：屏幕先清空，打出一行「> cd ~/week」，再一行行刷新出新页面
+   反应：主卡上方打出一行「+191 kcal ✓」，光标闪
+   滚动：右边距有一条 ASCII 滚动条 [█] 跟着位置走 */
+[data-theme="terminal"] { --page-delay: .3s; --leave: leave-now; --leave-dur: .05s; }
+[data-theme="terminal"] #tx.run > i:nth-child(1) { display: block; inset: 0; background: #14100a; animation: term-bg .62s linear both; }
+@keyframes term-bg { 0%, 50% { opacity: 1; } 100% { opacity: 0; } }
+[data-theme="terminal"] #tx.run::after { content: "> " attr(data-cmd); position: absolute; left: 22px; top: 38%; font: 600 15px/1.4 "JetBrains Mono", monospace; color: #f0c272;
+  white-space: nowrap; overflow: hidden; width: 0; border-right: 9px solid #ffb000; text-shadow: 0 0 6px rgba(255,176,0,.4);
+  animation: type-cmd .62s steps(14, end) both; }
+@keyframes type-cmd { 0% { width: 0; opacity: 1; } 42% { width: calc(var(--cmd-n, 14) * 1ch); } 50% { opacity: 1; } 51%, 100% { width: calc(var(--cmd-n, 14) * 1ch); opacity: 0; } }
+[data-theme="terminal"] #t-hero > .rx::after { content: "> " attr(data-n) " kcal ✓"; left: 16px; top: 2px; transform: none; font: 600 12px/1 "JetBrains Mono", monospace; color: #a6e36a;
+  overflow: hidden; width: 0; border-right: 6px solid #a6e36a; }
+[data-theme="terminal"] #t-hero.react > .rx::after { animation: type-log 1.8s steps(16, end); }
+@keyframes type-log { 0% { width: 0; opacity: 1; } 30% { width: 17ch; } 85% { opacity: 1; width: 17ch; } 100% { opacity: 0; width: 17ch; } }
+[data-theme="terminal"] #decor > i:nth-child(1) { display: block; right: 3px; top: 70px; bottom: 80px; width: 9px;
+  background: repeating-linear-gradient(transparent 0 3px, rgba(166,130,63,.55) 3px 5px); }
+[data-theme="terminal"] #decor > i:nth-child(2) { display: block; right: 2px; top: calc(70px + var(--sp, 0) * (100vh - 190px)); width: 11px; height: 40px; background: #ffb000; box-shadow: 0 0 6px rgba(255,176,0,.5); }
+
+/* ═══════════════ 4. 糖果 ═══════════════
+   转场：新页面像果冻一样从按钮处弹开（会回弹），边缘一圈粉色糖圈，糖针四散
+   反应：一把彩色糖果从圆环里蹦出来，抛物线落下
+   滚动：顶栏的糖果苹果 logo 会随滑动速度晃，停下后像弹簧一样回弹 */
+[data-theme="candy"] { --page-dur: .7s; --page-ease: cubic-bezier(.34,1.3,.55,1); }
+/* 薄荷糖圈：粉白条纹的糖环一边转一边撑开 */
+[data-theme="candy"] #tx.run > i:nth-child(1) { display: block; left: var(--tx-x); top: var(--tx-y); width: calc(var(--tx-r) * 2); height: calc(var(--tx-r) * 2); border-radius: 50%;
+  background: radial-gradient(farthest-side, transparent calc(100% - 21px), #1f1b3a calc(100% - 21px) calc(100% - 18px), transparent calc(100% - 18px) calc(100% - 3px), #1f1b3a calc(100% - 3px)),
+    repeating-conic-gradient(#ff5c8a 0 7deg, #fff6fa 7deg 14deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 21px), #000 calc(100% - 21px)); mask: radial-gradient(farthest-side, transparent calc(100% - 21px), #000 calc(100% - 21px));
+  animation: tx-ring .7s cubic-bezier(.34,1.3,.55,1) both; --ring-k: 2; --ring-rot: 70deg; }
+[data-theme="candy"] #tx.run > i:nth-child(n+2) { display: block; left: var(--tx-x); top: var(--tx-y); width: 20px; height: 8px; border-radius: 4px; border: 2px solid #1f1b3a; --d: 230px;
+  animation: tx-burst .65s cubic-bezier(.2,.7,.4,1) both; }
+[data-theme="candy"] #tx.run > i:nth-child(2) { background: #ffe066; } [data-theme="candy"] #tx.run > i:nth-child(3) { background: #4d96ff; }
+[data-theme="candy"] #tx.run > i:nth-child(4) { background: #2fbf71; } [data-theme="candy"] #tx.run > i:nth-child(5) { background: #ff5c8a; } [data-theme="candy"] #tx.run > i:nth-child(6) { background: #ff8a3d; }
+[data-theme="candy"] #t-hero.react > .rx i { width: 14px; height: 9px; border-radius: 5px; border: 2px solid #1f1b3a; animation: candy-toss 1.1s cubic-bezier(.3,.1,.6,1) both; }
+[data-theme="candy"] #t-hero.react > .rx i:nth-child(odd) { background: #ff5c8a; } [data-theme="candy"] #t-hero.react > .rx i:nth-child(3n) { background: #ffe066; }
+[data-theme="candy"] #t-hero.react > .rx i:nth-child(4n+2) { background: #4d96ff; } [data-theme="candy"] #t-hero.react > .rx i:nth-child(5n) { background: #2fbf71; }
+[data-theme="candy"] #t-hero.react > .rx i:nth-child(1) { --x: -70px; } [data-theme="candy"] #t-hero.react > .rx i:nth-child(2) { --x: -40px; animation-delay: .04s; }
+[data-theme="candy"] #t-hero.react > .rx i:nth-child(3) { --x: -15px; animation-delay: .08s; } [data-theme="candy"] #t-hero.react > .rx i:nth-child(4) { --x: 18px; animation-delay: .02s; }
+[data-theme="candy"] #t-hero.react > .rx i:nth-child(5) { --x: 44px; animation-delay: .06s; } [data-theme="candy"] #t-hero.react > .rx i:nth-child(6) { --x: 70px; animation-delay: .1s; }
+[data-theme="candy"] #t-hero.react > .rx i:nth-child(7) { --x: 95px; animation-delay: .03s; } [data-theme="candy"] #t-hero.react > .rx i:nth-child(8) { --x: -95px; animation-delay: .07s; }
+@keyframes candy-toss { 0% { transform: translate(-50%, -50%) scale(.3); opacity: 1; } 40% { transform: translate(calc(-50% + var(--x) * .6), -130%) scale(1) rotate(160deg); }
+  100% { transform: translate(calc(-50% + var(--x)), 160px) scale(1) rotate(400deg); opacity: 0; } }
+[data-theme="candy"] #t-hero > .rx::after { font: 700 15px/1 "Fredoka", var(--sys); color: #7048e8; background: #fff; border: 2.5px solid #1f1b3a; border-radius: 99px; padding: 4px 10px; box-shadow: 2px 2px 0 #1f1b3a; top: -6px; }
+[data-theme="candy"] #t-hero.react > .rx::after { animation: rx-label 1.7s cubic-bezier(.3,1.6,.5,1); }
+[data-theme="candy"] .hd .brand svg { transform-origin: 50% 90%; transform: rotate(clamp(-22deg, calc(var(--sv, 0) * 1.6deg), 22deg)); transition: transform .9s cubic-bezier(.3,1.9,.5,1); }
+
+/* ═══════════════ 5. 极简 ═══════════════
+   转场：真正的 iOS 推入——新页面整页推进来，旧页面向反方向退一点并变暗
+   反应：三个圆环像被轻按一样弹一下，数字上方出现一个小胶囊「+191 kcal」
+   滚动：页面标题像 iOS 大标题一样，往下滑时缩小，顶栏的分隔线渐渐出现 */
+[data-theme="ios"] { --page-in: ios-push; --page-dur: .45s; --leave: ios-back; --leave-dur: .45s; --leave-ease: cubic-bezier(.32,.72,0,1); }
+@keyframes ios-push { from { transform: translateX(calc(var(--dir, 1) * 100%)); box-shadow: -10px 0 30px rgba(0,0,0,.15); } }
+@keyframes ios-back { to { transform: translateX(calc(var(--dir, 1) * -30%)); filter: brightness(.85); } }
+[data-theme="ios"] #t-hero.react .ring { animation: ios-tap .55s cubic-bezier(.3,1.8,.5,1); }
+@keyframes ios-tap { 0% { transform: scale(1); } 30% { transform: scale(.94); } 100% { transform: scale(1); } }
+[data-theme="ios"] #t-hero > .rx::after { left: 90px; top: -4px; translate: -50% 0; transform: none; font: 600 12px/1 var(--sys); color: #fff; background: var(--kcal); padding: 4px 9px; border-radius: 99px; }
+[data-theme="ios"] #t-hero.react > .rx::after { animation: ios-pill 1.7s cubic-bezier(.3,1.5,.5,1); }
+@keyframes ios-pill { 0% { opacity: 0; transform: scale(.6); } 15% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
+[data-theme="ios"] .hd h1 { transform-origin: 0 50%; transform: scale(max(.82, calc(1.12 - var(--sy, 0) * .004))); }
+[data-theme="ios"] .hd { border-bottom-color: rgba(128,128,128, clamp(0, calc(var(--sy, 0) * .006), .3)); }
+
+/* ═══════════════ 6. 墨 ═══════════════
+   转场：一滴墨落在按钮上，新页面沿着不规则的墨迹边缘晕开
+   反应：一滴墨从上方落进圆相里，溅开墨点；「+191」盖成朱印
+   滚动：顶栏下面那道远山随滚动慢慢平移（视差） */
+@property --ms { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@keyframes ink-open { from { --ms: 0px; } to { --ms: calc(var(--tx-r) * 2.6); } }
+[data-theme="sumi"] { --page-in: ink-open; --page-dur: .8s; --page-ease: cubic-bezier(.5,0,.3,1); --page-fill: both; --leave: leave-stay; --leave-dur: .8s; }
+[data-theme="sumi"] .scr.entering { -webkit-mask: __INKBLOT__ no-repeat; mask: __INKBLOT__ no-repeat;
+  -webkit-mask-size: var(--ms) var(--ms); mask-size: var(--ms) var(--ms);
+  -webkit-mask-position: calc(var(--tx-x) - var(--ms) / 2) calc(var(--tx-y) - var(--ms) / 2); mask-position: calc(var(--tx-x) - var(--ms) / 2) calc(var(--tx-y) - var(--ms) / 2); }
+[data-theme="sumi"] #tx.run > i:nth-child(1) { display: block; left: var(--tx-x); top: var(--tx-y); width: 90px; height: 90px; background: __SPLASH__ center / contain no-repeat; animation: splash .55s ease-out both; }
+@keyframes splash { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 1; } 60% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; } }
+[data-theme="sumi"] #t-hero.react > .rx i:nth-child(1) { width: 14px; height: 14px; background: __INKDROP__ center / contain no-repeat; animation: drop .5s cubic-bezier(.5,0,1,1) both; }
+@keyframes drop { 0% { transform: translate(-50%, -150px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(-50%, -50%); opacity: 1; } }
+[data-theme="sumi"] #t-hero.react > .rx i:nth-child(2) { width: 120px; height: 120px; background: __SPLASH__ center / contain no-repeat; animation: splash2 .9s .45s ease-out both; }
+@keyframes splash2 { 0% { transform: translate(-50%, -50%) scale(.1); opacity: .9; } 100% { transform: translate(-50%, -50%) scale(1.3); opacity: 0; } }
+[data-theme="sumi"] #t-hero > .rx::after { left: 150px; top: 10px; font: 700 13px/1 "Noto Serif SC", serif; color: #f6efe3; background: var(--accent); padding: 4px 6px; border-radius: 3px; transform: rotate(-6deg); }
+[data-theme="sumi"] #t-hero.react > .rx::after { animation: seal-in 1.8s .45s cubic-bezier(.3,1.6,.5,1) both; }
+@keyframes seal-in { 0% { opacity: 0; transform: scale(1.8) rotate(-16deg); } 15% { opacity: .95; transform: scale(1) rotate(-6deg); } 80% { opacity: .95; } 100% { opacity: 0; transform: rotate(-6deg); } }
+[data-theme="sumi"] .hd { background-position: calc(50% - var(--sy, 0) * .12px) bottom, 0 0; }
+
+/* ═══════════════ 7. 霓虹 ═══════════════
+   转场：一阵故障——几条彩色干扰带在屏幕上跳，旧页面被切片撕掉，新页面切片拼上
+   反应：圆环四角弹出 HUD 锁定框，「[+191 KCAL]」带括号跳出来
+   滚动：滑得越快，顶栏 logo 的红青色差拉得越开（速度 = 故障强度） */
+[data-theme="neon"] { --leave: leave-glitch; --leave-dur: .3s; --leave-ease: steps(1, end); }
+@keyframes leave-glitch { 0% { clip-path: inset(0); } 25% { clip-path: inset(18% 0 30% 0); transform: translateX(8px); } 50% { clip-path: inset(55% 0 12% 0); transform: translateX(-6px); } 75%, 100% { opacity: 0; } }
+[data-theme="neon"] #tx.run > i:nth-child(-n+5) { display: block; left: 0; right: 0; opacity: 0; mix-blend-mode: screen; animation: glitch-bar .36s steps(1, end) both; }
+[data-theme="neon"] #tx.run > i:nth-child(1) { top: 18%; height: 14px; background: #f3e600; }
+[data-theme="neon"] #tx.run > i:nth-child(2) { top: 41%; height: 6px; background: #3ad6f0; animation-delay: .04s; }
+[data-theme="neon"] #tx.run > i:nth-child(3) { top: 57%; height: 22px; background: #ff5c86; animation-delay: .08s; }
+[data-theme="neon"] #tx.run > i:nth-child(4) { top: 73%; height: 4px; background: #3ad6f0; animation-delay: .02s; }
+[data-theme="neon"] #tx.run > i:nth-child(5) { top: 30%; height: 3px; background: #f3e600; animation-delay: .12s; }
+@keyframes glitch-bar { 0% { opacity: .9; transform: translateX(-30%); } 25% { opacity: .5; transform: translateX(12%); } 50% { opacity: .85; transform: translateX(-6%) scaleY(1.6); } 75% { opacity: .3; transform: translateX(20%); } 100% { opacity: 0; } }
+[data-theme="neon"] #tx.run > i:nth-child(6) { display: block; inset: 0; background: linear-gradient(90deg, rgba(255,92,134,.12), rgba(58,214,240,.12)); animation: term-bg .25s steps(2, end) both; }
+[data-theme="neon"] #t-hero.react > .rx i:nth-child(1) { width: 172px; height: 172px; border: 0;
+  background: linear-gradient(#f3e600,#f3e600) 0 0 / 22px 3px no-repeat, linear-gradient(#f3e600,#f3e600) 0 0 / 3px 22px no-repeat,
+              linear-gradient(#f3e600,#f3e600) 100% 0 / 22px 3px no-repeat, linear-gradient(#f3e600,#f3e600) 100% 0 / 3px 22px no-repeat,
+              linear-gradient(#f3e600,#f3e600) 0 100% / 22px 3px no-repeat, linear-gradient(#f3e600,#f3e600) 0 100% / 3px 22px no-repeat,
+              linear-gradient(#f3e600,#f3e600) 100% 100% / 22px 3px no-repeat, linear-gradient(#f3e600,#f3e600) 100% 100% / 3px 22px no-repeat;
+  animation: hud-lock 1.1s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes hud-lock { 0% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } 30% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 40% { opacity: .2; } 50% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
+[data-theme="neon"] #t-hero > .rx::after { content: "[" attr(data-n) " KCAL]"; font: 700 15px/1 "Rajdhani", var(--sys); letter-spacing: 1px; color: #f3e600; }
+[data-theme="neon"] #t-hero.react > .rx::after { animation: rx-label 1.7s steps(6, end); }
+[data-theme="neon"] .hd .brand { filter: drop-shadow(clamp(-6px, calc(var(--sv, 0) * .3px), 6px) 0 rgba(255,92,134,.85)) drop-shadow(clamp(-6px, calc(var(--sv, 0) * -.3px), 6px) 0 rgba(58,214,240,.85)); }
+
+/* ═══════════════ 8. 蒸汽 ═══════════════
+   转场：一圈黄铜齿轮从按钮处转着张开，新页面在齿轮圈里面，按钮处一个小齿轮飞转、喷一口蒸汽
+   反应：排气管「泄压」——连喷三大团蒸汽，压力表下方的红灯闪两下
+   滚动：顶栏的齿轮 logo 跟着滚动转 */
+[data-theme="steam"] { --page-dur: .78s; --page-ease: cubic-bezier(.6,0,.3,1); }
+[data-theme="steam"] #tx.run > i:nth-child(1) { display: block; background: __GEAR_RING__ center / contain no-repeat; --ring-k: 2.13; --ring-rot: 200deg; animation: tx-ring .78s cubic-bezier(.6,0,.3,1) both; }
+[data-theme="steam"] #tx.run > i:nth-child(1), [data-theme="nature"] #tx.run > i:nth-child(1), [data-theme="magic"] #tx.run > i:nth-child(1), [data-theme="starwild"] #tx.run > i:nth-child(1) {
+  left: var(--tx-x); top: var(--tx-y); width: calc(var(--tx-r) * var(--ring-k)); height: calc(var(--tx-r) * var(--ring-k)); }
+[data-theme="steam"] #tx.run > i:nth-child(2) { display: block; left: var(--tx-x); top: var(--tx-y); width: 54px; height: 54px; background: __GEAR_SMALL__ center / contain no-repeat; animation: cog .78s ease-out both; }
+@keyframes cog { 0% { transform: translate(-50%, -50%) scale(.3) rotate(0); opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1) rotate(-540deg); opacity: 0; } }
+[data-theme="steam"] #tx.run > i:nth-child(3) { display: block; left: var(--tx-x); top: var(--tx-y); width: 90px; height: 90px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(244,234,212,.8), rgba(244,234,212,0) 65%); animation: steam-out .7s ease-out both; }
+@keyframes steam-out { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(-50%, -160%) scale(2.6); opacity: 0; } }
+[data-theme="steam"] #t-hero.react > .rx i:nth-child(-n+3) { left: auto; right: 6px; top: -10px; width: 34px; height: 34px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(244,234,212,.85), rgba(244,234,212,.3) 45%, rgba(244,234,212,0) 70%); animation: vent 1.1s ease-out both; }
+[data-theme="steam"] #t-hero.react > .rx i:nth-child(2) { animation-delay: .15s; }
+[data-theme="steam"] #t-hero.react > .rx i:nth-child(3) { animation-delay: .3s; }
+@keyframes vent { 0% { transform: translate(0, 12px) scale(.4); opacity: 0; } 12% { opacity: 1; } 100% { transform: translate(-84px, -10px) scale(3); opacity: 0; } }
+[data-theme="steam"] #t-hero.react > .rx i:nth-child(4) { left: 86px; top: 50px; width: 8px; height: 8px; border-radius: 50%; background: #ff5a3c;
+  box-shadow: 0 0 8px 3px rgba(255,90,60,.7); animation: lamp 1s steps(1, end) both; }
+@keyframes lamp { 0%, 50% { opacity: 1; } 25%, 75%, 100% { opacity: 0; } }
+[data-theme="steam"] #t-hero > .rx::after { left: auto; right: 62px; top: 8px; transform: none; font: 700 13px/1 "Zilla Slab", serif; color: #2a1a08; background: linear-gradient(180deg, #e8c374, #c9953f); padding: 3px 7px; border-radius: 3px; border: 1px solid #8a6430; }
+[data-theme="steam"] #t-hero.react > .rx::after { animation: plate 1.8s cubic-bezier(.3,1.5,.5,1); }
+@keyframes plate { 0% { opacity: 0; transform: translateY(-8px); } 15% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+[data-theme="steam"] .hd .brand svg { transform: rotate(calc(var(--sy, 0) * .8deg)); }
+
+/* ═══════════════ 9. 魔法 ═══════════════
+   转场：从按钮处展开一圈旋转的召唤法阵，新页面在法阵里显现，按钮处一闪金光、光点散开
+   反应：圆环上浮起一道符文法阵并扩散，金色光点向外飞
+   滚动：背景里一个很淡的大法阵跟着滚动旋转；顶栏的星形 logo 也转 */
+[data-theme="magic"] { --page-dur: .8s; --page-ease: cubic-bezier(.4,0,.2,1); }
+[data-theme="magic"] #tx.run > i:nth-child(1) { display: block; background: __RUNE_RING__ center / contain no-repeat; --ring-k: 2.06; --ring-rot: -140deg;
+  filter: drop-shadow(0 0 6px rgba(233,205,133,.7)); animation: tx-ring .8s cubic-bezier(.4,0,.2,1) both; }
+[data-theme="magic"] #tx.run > i:nth-child(2) { display: block; left: var(--tx-x); top: var(--tx-y); width: 160px; height: 160px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,240,190,.9), rgba(220,182,90,.35) 35%, transparent 70%); animation: flash .6s ease-out both; }
+@keyframes flash { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; } }
+[data-theme="magic"] #tx.run > i:nth-child(n+3) { display: block; left: var(--tx-x); top: var(--tx-y); width: 5px; height: 5px; border-radius: 50%; background: #f6e3a6;
+  box-shadow: 0 0 8px 2px rgba(246,227,166,.7); --d: 260px; animation: tx-burst .75s ease-out both; }
+[data-theme="magic"] #t-hero.react > .rx i:nth-child(1) { width: 150px; height: 150px; background: __RUNE_RING__ center / contain no-repeat; filter: drop-shadow(0 0 4px rgba(233,205,133,.8)); animation: summon 1.2s ease-out both; }
+@keyframes summon { 0% { transform: translate(-50%, -50%) scale(.6) rotate(0); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.45) rotate(90deg); opacity: 0; } }
+[data-theme="magic"] #t-hero.react > .rx i:nth-child(n+2) { width: 5px; height: 5px; border-radius: 50%; background: #f6e3a6; box-shadow: 0 0 6px 2px rgba(246,227,166,.7); --d: 96px; animation: rx-burst .9s .1s ease-out both; }
+[data-theme="magic"] #t-hero > .rx::after { font-family: "Cinzel", serif; color: #f0d68a; text-shadow: 0 0 8px rgba(220,182,90,.6); }
+[data-theme="magic"] #decor > i:nth-child(1) { display: block; right: -120px; top: 38%; width: 300px; height: 300px; background: __MAGIC_CIRCLE__ center / contain no-repeat; transform: rotate(calc(var(--sy, 0) * .25deg)); }
+[data-theme="magic"] .hd .brand svg { transform: rotate(calc(var(--sy, 0) * .5deg)); }
+
+/* ═══════════════ 10. 自然 ═══════════════
+   转场：一圈叶环从按钮处长开，新页面在叶环里面，几片叶子被风吹散
+   反应：圆环中心「发芽」——六片叶子向外绽开、打着旋飘走
+   滚动：顶栏右侧垂下一根藤蔓，滑动时被「风」吹得摆起来，停下后慢慢晃回去 */
+[data-theme="nature"] { --page-dur: .75s; --page-ease: cubic-bezier(.4,0,.2,1); }
+[data-theme="nature"] #tx.run > i:nth-child(1) { display: block; background: __LEAF_RING__ center / contain no-repeat; --ring-k: 2.15; --ring-rot: 40deg; animation: tx-ring .75s cubic-bezier(.4,0,.2,1) both; }
+[data-theme="nature"] #tx.run > i:nth-child(n+2) { display: block; left: var(--tx-x); top: var(--tx-y); width: 16px; height: 16px; background: #8db36f; --d: 300px;
+  -webkit-mask: __LEAFMASK__ center / contain no-repeat; mask: __LEAFMASK__ center / contain no-repeat; animation: tx-burst .8s ease-out both; }
+[data-theme="nature"] #tx.run > i:nth-child(2n+3) { background: #5b8c4e; }
+[data-theme="nature"] #t-hero.react > .rx i { width: 14px; height: 14px; background: #8db36f; -webkit-mask: __LEAFMASK__ center / contain no-repeat; mask: __LEAFMASK__ center / contain no-repeat;
+  --d: 88px; animation: rx-burst 1.1s cubic-bezier(.2,.8,.3,1) both; }
+[data-theme="nature"] #t-hero.react > .rx i:nth-child(even) { background: #5b8c4e; animation-delay: .06s; }
+[data-theme="nature"] #t-hero.react > .rx i:nth-child(n+7) { display: none; }
+[data-theme="nature"] #t-hero > .rx::after { font-family: "Fraunces", serif; color: #4d7a46; }
+[data-theme="nature"] .hd::after { content: ""; position: absolute; right: -4px; top: 100%; width: 24px; height: 84px; pointer-events: none;
+  background: __VINE__ center top / contain no-repeat; transform-origin: 60% 0;
+  transform: rotate(clamp(-18deg, calc(var(--sv, 0) * -1.3deg), 18deg)); transition: transform 1.4s cubic-bezier(.3,1.6,.5,1); }
+
+/* ═══════════════ 11. 狩猎 ═══════════════
+   转场：三道爪痕撕过屏幕，旧任务单被扯下、翻着掉落，露出钉好的新任务单
+   反应：一道红色爪痕划过圆环，蜡封重新「盖」一次
+   滚动：右上角挂着一盏提灯，滑动时会随速度摆动，停下后来回荡几下 */
+[data-theme="hunt"] { --tx-split: 1; --page-in: pg-under; --page-dur: .9s; --page-ease: ease-out; --leave-dur: .9s; --leave-ease: linear; }
+/* 旧任务单被复制成左右两半（JS），沿中间那道爪痕的锯齿线裁开 */
+[data-theme="hunt"] .scr.leaving { z-index: 2; }
+[data-theme="hunt"] .scr.leaving.tear-l { clip-path: __TEAR_L__; transform-origin: 0 var(--y0, 0px); --leave: tear-l; }
+[data-theme="hunt"] .scr.leaving.tear-r { clip-path: __TEAR_R__; transform-origin: 100% var(--y0, 0px); --leave: tear-r; }
+@keyframes tear-l { 0%, 28% { transform: none; opacity: 1; } 34% { transform: translate(-2px, 1px) rotate(.3deg); } 40% { transform: translate(-4px, 3px) rotate(.9deg); animation-timing-function: cubic-bezier(.5,0,.9,.55); }
+  88% { opacity: 1; } 100% { transform: translate(-56px, 300px) rotate(9deg); opacity: 0; } }
+@keyframes tear-r { 0%, 28% { transform: none; opacity: 1; } 34% { transform: translate(2px, 1px) rotate(-.3deg); } 40% { transform: translate(5px, 2px) rotate(-1deg); animation-timing-function: cubic-bezier(.5,0,.9,.55); }
+  88% { opacity: 1; } 100% { transform: translate(72px, 340px) rotate(-11deg); opacity: 0; } }
+/* 爪痕画在旧页面自己身上（跟着撕开的两半一起掉）：从右上往左下扫出来 */
+[data-theme="hunt"] .scr.leaving::after, [data-theme="hunt"] #tx.run.solo > i:nth-child(6) { content: ""; position: absolute; left: 0; top: var(--y0, 0px); width: 100%; height: 100vh; z-index: 30; pointer-events: none;
+  background: __CLAW_TX__ 0 0 / 100% 100% no-repeat;
+  -webkit-mask: linear-gradient(200deg, #000 47%, transparent 53%) 0 100% / 100% 300% no-repeat; mask: linear-gradient(200deg, #000 47%, transparent 53%) 0 100% / 100% 300% no-repeat;
+  animation: claw-sweep .24s cubic-bezier(.3,.6,.3,1) both; }
+@keyframes claw-sweep { from { -webkit-mask-position: 0 100%; mask-position: 0 100%; } to { -webkit-mask-position: 0 0; mask-position: 0 0; } }
+/* 换主题时没有旧页面可撕：爪痕画在转场层上，再淡出 */
+[data-theme="hunt"] #tx.run.solo > i:nth-child(6) { display: block; top: 0; animation: claw-sweep .24s cubic-bezier(.3,.6,.3,1) both, fade-late .9s linear both; }
+@keyframes fade-late { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }
+/* 爪子扫过时崩飞的纸屑 */
+[data-theme="hunt"] #tx.run > i:nth-child(-n+5) { display: block; width: 8px; height: 6px; background: #f3e3bd; clip-path: polygon(0 0, 100% 30%, 55% 100%); opacity: 0; animation: fleck .75s cubic-bezier(.2,.6,.5,1) both; }
+[data-theme="hunt"] #tx.run > i:nth-child(1) { left: 72%; top: 18%; --fx: 34px; animation-delay: .04s; }
+[data-theme="hunt"] #tx.run > i:nth-child(2) { left: 66%; top: 36%; --fx: -26px; background: #5b1d0e; animation-delay: .08s; }
+[data-theme="hunt"] #tx.run > i:nth-child(3) { left: 46%; top: 52%; --fx: 30px; animation-delay: .12s; width: 6px; height: 5px; }
+[data-theme="hunt"] #tx.run > i:nth-child(4) { left: 38%; top: 70%; --fx: -34px; background: #5b1d0e; animation-delay: .16s; }
+[data-theme="hunt"] #tx.run > i:nth-child(5) { left: 24%; top: 84%; --fx: 22px; animation-delay: .2s; }
+@keyframes fleck { 0% { transform: translate(0, 0) rotate(0) scale(.4); opacity: 0; } 8% { opacity: 1; } 35% { transform: translate(calc(var(--fx) * .7), -26px) rotate(160deg) scale(1); }
+  100% { transform: translate(var(--fx), 110px) rotate(420deg) scale(1); opacity: 0; } }
+[data-theme="hunt"] #t-hero.react > .rx i:nth-child(1) { left: 40px; top: 146px; width: 88px; height: 74px; background: __CLAWS_R__ center / contain no-repeat; animation: slash .9s ease-out both; }
+@keyframes slash { 0% { clip-path: inset(0 0 100% 0); transform: translate(-50%, -50%); opacity: 1; } 25% { clip-path: inset(0 0 0 0); } 75% { opacity: 1; } 100% { clip-path: inset(0 0 0 0); transform: translate(-50%, -50%); opacity: 0; } }
+[data-theme="hunt"] #t-hero.react > .fx i:nth-child(3) { animation: stamp .5s .2s cubic-bezier(.3,1.5,.5,1) backwards; }
+[data-theme="hunt"] #t-hero > .rx::after { font-family: "Vollkorn", serif; color: #8f2817; }
+[data-theme="hunt"] .hd::after { content: ""; position: absolute; right: 0; top: calc(100% - 4px); width: 18px; height: 50px; pointer-events: none;
+  background: __LANTERN__ center top / contain no-repeat; transform-origin: 50% 0;
+  transform: rotate(clamp(-24deg, calc(var(--sv, 0) * -1.6deg), 24deg)); transition: transform 1.6s cubic-bezier(.25,2.2,.45,.8); }
+
+/* ═══════════════ 12. 学园 ═══════════════
+   转场：黄、浅蓝、蓝三层斜切面板依次横扫过屏幕，中间转过一颗白星
+   反应：一把彩色小三角从圆环里炸开，「+191」装在斜切的蓝色标签里
+   滚动：顶栏底部的三色饰带就是阅读进度条，滑到底刚好填满 */
+[data-theme="academy"] { --page-in: cover-in; --page-dur: .8s; --page-ease: linear; --leave: cover-out; --leave-dur: .8s; --leave-ease: linear; }
+[data-theme="academy"] #tx.run > i:nth-child(-n+3) { display: block; top: -10%; height: 120%; left: 0; width: 150%; transform: translateX(110%) skewX(-20deg); animation: panel .7s cubic-bezier(.7,0,.3,1) both; }
+[data-theme="academy"] #tx.run > i:nth-child(1) { background: #ffd84a; }
+[data-theme="academy"] #tx.run > i:nth-child(2) { background: #8fd3ff; animation-delay: .05s; }
+[data-theme="academy"] #tx.run > i:nth-child(3) { background: #1a96f0; animation-delay: .1s; }
+@keyframes panel { from { transform: translateX(110%) skewX(-20deg); } to { transform: translateX(-180%) skewX(-20deg); } }
+[data-theme="academy"] #tx.run > i:nth-child(4) { display: block; left: 50%; top: 46%; width: 54px; height: 54px; background: __STAR_W__ center / contain no-repeat; animation: star-spin .7s .1s ease-out both; }
+@keyframes star-spin { 0%, 30% { transform: translate(-50%, -50%) scale(0) rotate(-90deg); opacity: 1; } 50% { transform: translate(-50%, -50%) scale(1.1) rotate(0); } 70% { transform: translate(-50%, -50%) scale(1) rotate(30deg); opacity: 1; } 100% { transform: translate(-280%, -50%) scale(.6) rotate(90deg); opacity: 0; } }
+[data-theme="academy"] #t-hero.react > .rx i { width: 0; height: 0; border: 6px solid transparent; border-bottom: 10px solid #1a96f0; border-top: 0; --d: 84px; animation: rx-burst .9s ease-out both; }
+[data-theme="academy"] #t-hero.react > .rx i:nth-child(3n) { border-bottom-color: #ffd84a; }
+[data-theme="academy"] #t-hero.react > .rx i:nth-child(3n+1) { border-bottom-color: #ff6f91; animation-delay: .05s; }
+[data-theme="academy"] #t-hero > .rx::after { font: italic 800 13px/1 "Montserrat", var(--sys); color: #fff; background: #1a96f0; padding: 4px 10px; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+[data-theme="academy"] .hd::after { content: ""; position: absolute; left: 0; bottom: -1px; height: 3px; width: 100%; pointer-events: none;
+  background: linear-gradient(90deg, #1a96f0 0 46%, #6fd8ff 46% 74%, #ffd84a 74% 100%); transform-origin: 0 50%; transform: scaleX(max(.04, var(--sp, 0))); }
+
+/* ═══════════════ 13. 工业 ═══════════════
+   转场：左右两扇带警示斜纹的防爆门「哐」地合上，中间黄灯闪两下，再打开露出新页面
+   反应：圆环上「啪」地盖一个 LOGGED 方章，四角锁定框收紧
+   滚动：右边距有一把刻度尺跟着页面走，中间固定一个黄色指针（像深度计） */
+[data-theme="industry"] { --page-in: cover-in; --page-dur: .85s; --page-ease: linear; --leave: cover-out; --leave-dur: .85s; --leave-ease: linear; }
+/* 两扇厚钢门：内侧警示斜纹、一列铆钉、横向接缝；门中间的警示灯一边一半，跟着门一起合上，合拢后才亮起并旋转扫光 */
+[data-theme="industry"] #tx.run > i:nth-child(-n+2) { display: block; top: 0; bottom: 0; width: calc(50% + .5px); }
+[data-theme="industry"] #tx.run > i:nth-child(1) { left: 0; border-right: 3px solid #161616; animation: door-l .85s both;
+  background: repeating-linear-gradient(-45deg, #ffd400 0 14px, #161616 14px 28px) right / 22px 100% no-repeat,
+    radial-gradient(circle, #a3a39b 0 1.6px, #44443f 2.2px, transparent 2.8px) right 30px top 20px / 10px 44px repeat-y,
+    repeating-linear-gradient(180deg, transparent 0 166px, rgba(0,0,0,.5) 166px 168px, rgba(255,255,255,.08) 168px 169px, transparent 169px 172px),
+    linear-gradient(90deg, #2c2c29, #3e3e3a 62%, #33332f); }
+[data-theme="industry"] #tx.run > i:nth-child(2) { right: 0; border-left: 3px solid #161616; animation: door-r .85s both;
+  background: repeating-linear-gradient(-45deg, #ffd400 0 14px, #161616 14px 28px) left / 22px 100% no-repeat,
+    radial-gradient(circle, #a3a39b 0 1.6px, #44443f 2.2px, transparent 2.8px) left 30px top 20px / 10px 44px repeat-y,
+    repeating-linear-gradient(180deg, transparent 0 166px, rgba(0,0,0,.5) 166px 168px, rgba(255,255,255,.08) 168px 169px, transparent 169px 172px),
+    linear-gradient(270deg, #2c2c29, #3e3e3a 62%, #33332f); }
+@keyframes door-l { 0% { transform: translateX(-100%); animation-timing-function: cubic-bezier(.7,0,1,.6); } 34% { transform: translateX(0); } 40% { transform: translateX(-2%); } 44%, 58% { transform: translateX(0); animation-timing-function: cubic-bezier(.5,0,.3,1); } 100% { transform: translateX(-100%); } }
+@keyframes door-r { 0% { transform: translateX(100%); animation-timing-function: cubic-bezier(.7,0,1,.6); } 34% { transform: translateX(0); } 40% { transform: translateX(2%); } 44%, 58% { transform: translateX(0); animation-timing-function: cubic-bezier(.5,0,.3,1); } 100% { transform: translateX(100%); } }
+[data-theme="industry"] #tx.run > i:nth-child(-n+2)::after { content: ""; position: absolute; top: 50%; width: 26px; height: 52px; margin-top: -26px;
+  background: radial-gradient(circle at var(--lx) 50%, #fff7b8 0 5px, #ffd400 13px, #a88400 21px, #161616 22px 26px);
+  filter: brightness(.42) saturate(.7); animation: lamp-on .85s linear both; }
+[data-theme="industry"] #tx.run > i:nth-child(1)::after { right: -3px; --lx: 100%; border-radius: 26px 0 0 26px; }
+[data-theme="industry"] #tx.run > i:nth-child(2)::after { left: -3px; --lx: 0%; border-radius: 0 26px 26px 0; }
+@keyframes lamp-on { 0%, 33% { filter: brightness(.42) saturate(.7); } 38% { filter: brightness(1.15) saturate(1); } 45% { filter: brightness(.75) saturate(1); } 51% { filter: brightness(1.15) saturate(1); } 58%, 100% { filter: brightness(.42) saturate(.7); } }
+[data-theme="industry"] #tx.run > i:nth-child(3) { display: block; left: 50%; top: 50%; width: 460px; height: 460px; margin: -230px 0 0 -230px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,232,110,.6) 0 26px, rgba(255,212,0,.2) 56px, transparent 110px),
+    conic-gradient(rgba(255,212,0,.3) 0 12deg, transparent 22deg 180deg, rgba(255,212,0,.3) 180deg 192deg, transparent 202deg);
+  -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%); mask: radial-gradient(circle, #000 30%, transparent 70%);
+  mix-blend-mode: screen; opacity: 0; animation: beacon-op .85s linear both, beacon-spin .85s linear both; }
+@keyframes beacon-op { 0%, 34% { opacity: 0; } 40%, 52% { opacity: 1; } 58%, 100% { opacity: 0; } }
+@keyframes beacon-spin { from { transform: rotate(0); } to { transform: rotate(320deg); } }
+[data-theme="industry"] #t-hero.react > .rx i:nth-child(1) { left: 50px; top: 18px; width: 96px; height: 34px; border: 3px solid #161616; background: #ffd400; animation: logged 1.4s steps(1, end) both; }
+[data-theme="industry"] #t-hero.react > .rx i:nth-child(1)::after { content: "LOGGED"; position: absolute; inset: 0; display: grid; place-items: center; font: 700 16px/1 "Saira Condensed", var(--sys); letter-spacing: 2px; color: #161616; }
+@keyframes logged { 0% { transform: translate(-50%, -50%) scale(1.6) rotate(-8deg); opacity: 0; } 12% { transform: translate(-50%, -50%) scale(1.25) rotate(-8deg); opacity: 1; } 22%, 80% { transform: translate(-50%, -50%) scale(1) rotate(-8deg); opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(-8deg); } }
+[data-theme="industry"] #t-hero > .rx::after { display: none; }
+[data-theme="industry"] #decor > i:nth-child(1) { display: block; right: 1px; top: -40px; width: 8px; height: calc(100% + 4000px);
+  background: repeating-linear-gradient(transparent 0 9px, rgba(22,22,22,.35) 9px 10px), repeating-linear-gradient(transparent 0 49px, rgba(22,22,22,.6) 49px 51px);
+  background-size: 4px 100%, 8px 100%; background-repeat: no-repeat; background-position: right top, right top;
+  transform: translateY(calc(max(-3900px, var(--sy, 0) * -1px))); }
+[data-theme="industry"] #decor > i:nth-child(2) { display: block; right: 9px; top: 50%; width: 0; height: 0; border: 5px solid transparent; border-left: 7px solid #ffd400; border-right: 0; filter: drop-shadow(0 0 1px #161616); }
+
+/* ═══════════════ 14. 远征 ═══════════════
+   转场：四周的黑暗向按钮处合拢（像火把被遮住），一道红光斜劈过去，黑暗再散开露出新页面
+   反应：圆环里迸出一把火星往上飘，铁环红光一闪
+   滚动：左边距有一条细线，一颗深红菱形「行军标记」跟着阅读进度往下走 */
+@property --hr { syntax: '<length>'; inherits: false; initial-value: 0px; }
+[data-theme="expedition"] { --page-in: cover-in; --page-dur: .9s; --page-ease: linear; --leave: cover-out; --leave-dur: .9s; --leave-ease: linear; }
+[data-theme="expedition"] #tx.run > i:nth-child(1) { display: block; inset: 0; background: radial-gradient(circle at var(--tx-x) var(--tx-y), transparent var(--hr), #0b0a09 calc(var(--hr) + 60px)); animation: dark-iris .9s both; }
+@keyframes dark-iris { 0% { --hr: var(--tx-r); animation-timing-function: cubic-bezier(.6,0,.8,.5); } 42% { --hr: -60px; } 58% { --hr: -60px; animation-timing-function: cubic-bezier(.2,.5,.4,1); } 100% { --hr: var(--tx-r); } }
+[data-theme="expedition"] #tx.run .tx-svg { display: block; }
+[data-theme="expedition"] #tx.run .tx-svg .p1 { d: path("M-20 720 L410 150"); stroke: #ff7a5c; stroke-width: 3; stroke-dasharray: 100; stroke-dashoffset: 100; filter: drop-shadow(0 0 6px #de6253); animation: red-slash .9s both; }
+@keyframes red-slash { 0%, 38% { stroke-dashoffset: 100; opacity: 1; } 52% { stroke-dashoffset: 0; opacity: 1; } 68%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+[data-theme="expedition"] #t-hero.react > .rx i { width: 4px; height: 4px; border-radius: 50%; background: #ffb070; box-shadow: 0 0 6px 2px rgba(255,120,60,.6); animation: ember-up 1.3s ease-out both; }
+[data-theme="expedition"] #t-hero.react > .rx i:nth-child(1) { --x: -30px; } [data-theme="expedition"] #t-hero.react > .rx i:nth-child(2) { --x: -12px; animation-delay: .08s; }
+[data-theme="expedition"] #t-hero.react > .rx i:nth-child(3) { --x: 8px; animation-delay: .16s; } [data-theme="expedition"] #t-hero.react > .rx i:nth-child(4) { --x: 26px; animation-delay: .05s; }
+[data-theme="expedition"] #t-hero.react > .rx i:nth-child(5) { --x: -40px; animation-delay: .22s; } [data-theme="expedition"] #t-hero.react > .rx i:nth-child(6) { --x: 40px; animation-delay: .12s; }
+[data-theme="expedition"] #t-hero.react > .rx i:nth-child(7) { --x: 0px; width: 150px; height: 150px; background: none; box-shadow: 0 0 0 3px rgba(222,98,83,.7), 0 0 20px rgba(222,98,83,.5); animation: ring-pulse .7s ease-out both; }
+[data-theme="expedition"] #t-hero.react > .rx i:nth-child(8) { display: none; }
+@keyframes ember-up { 0% { transform: translate(calc(-50% + var(--x) * .3), -50%); opacity: 0; } 15% { opacity: 1; } 100% { transform: translate(calc(-50% + var(--x)), -130px); opacity: 0; } }
+@keyframes ring-pulse { 0% { transform: translate(-50%, -50%) scale(.92); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.15); opacity: 0; } }
+[data-theme="expedition"] #t-hero > .rx::after { font-family: "Cormorant Garamond", serif; font-size: 17px; color: #de6253; }
+[data-theme="expedition"] #decor > i:nth-child(1) { display: block; left: 7px; top: 80px; bottom: 90px; width: 1px; background: linear-gradient(transparent, #3a342c 10%, #3a342c 90%, transparent); }
+[data-theme="expedition"] #decor > i:nth-child(2) { display: block; left: 3px; top: calc(80px + var(--sp, 0) * (100vh - 180px)); width: 9px; height: 9px; transform: rotate(45deg); background: #b8463c; outline: 1px solid #c9a46a; }
+
+/* ═══════════════ 15. 星野 ═══════════════
+   转场：一条带行星的轨道从按钮处扩张开（行星沿轨道边缘滑行），同时几道跃迁光线射出
+   反应：一颗彗星从右上角划进圆环，落点泛起一圈涟漪
+   滚动：顶栏的行星 logo 跟着滚动自转；右边距有一颗卫星随阅读进度沿弧线移动 */
+[data-theme="starwild"] { --page-dur: .8s; --page-ease: cubic-bezier(.5,0,.2,1); }
+[data-theme="starwild"] #tx.run > i:nth-child(1) { display: block; background: __ORBIT_RING__ center / contain no-repeat; --ring-k: 2.08; --ring-rot: 120deg; animation: tx-ring .8s cubic-bezier(.5,0,.2,1) both; }
+[data-theme="starwild"] #tx.run > i:nth-child(n+2) { display: block; left: var(--tx-x); top: var(--tx-y); width: 120px; height: 2px; transform-origin: 0 50%;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.9)); animation: warp .55s ease-in both; }
+@keyframes warp { 0% { transform: rotate(var(--a)) translateX(10px) scaleX(.1); opacity: 0; } 30% { opacity: 1; } 100% { transform: rotate(var(--a)) translateX(420px) scaleX(1.4); opacity: 0; } }
+[data-theme="starwild"] #t-hero.react > .rx i:nth-child(1) { width: 60px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, rgba(255,255,255,0), #fff); box-shadow: 0 0 6px rgba(200,220,255,.9);
+  animation: comet-in .55s ease-in both; transform-origin: 100% 50%; }
+@keyframes comet-in { 0% { transform: translate(180px, -110px) rotate(150deg) translateX(-30px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(-50%, -50%) rotate(150deg) translateX(-30px); opacity: 0; } }
+[data-theme="starwild"] #t-hero.react > .rx i:nth-child(2) { width: 140px; height: 140px; border-radius: 50%; border: 2px solid rgba(95,211,196,.8); animation: ripple .8s .45s ease-out both; }
+[data-theme="starwild"] #t-hero.react > .rx i:nth-child(3) { width: 140px; height: 140px; border-radius: 50%; border: 1.5px solid rgba(255,143,69,.7); animation: ripple .8s .6s ease-out both; }
+@keyframes ripple { 0% { transform: translate(-50%, -50%) scale(.5); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; } }
+[data-theme="starwild"] #t-hero > .rx::after { font-family: "Space Grotesk", var(--sys); color: #ff8f45; }
+[data-theme="starwild"] .hd .brand svg { transform: rotate(calc(var(--sy, 0) * .7deg)); }
+[data-theme="starwild"] #decor > i:nth-child(1) { display: block; right: -2px; top: calc(90px + var(--sp, 0) * (100vh - 220px)); width: 18px; height: 18px; background: __MOON__ center / contain no-repeat;
+  transform: translateX(calc(sin(var(--sp, 0) * 3.1416rad) * -6px)) rotate(calc(var(--sy, 0) * 1deg)); }
+
+/* ═══════════════ 16. 苍穹 ═══════════════
+   转场：两堵云墙从左右合拢遮住屏幕，飞艇从中间穿过，云再散开露出新页面
+   反应：圆环周围迸出一圈彩色宝石光点，金环亮一下
+   滚动：顶栏里有一艘小飞艇，随阅读进度从左飞到右 */
+[data-theme="skyward"] { --page-in: cover-in; --page-dur: .95s; --page-ease: linear; --leave: cover-out; --leave-dur: .95s; --leave-ease: linear; }
+[data-theme="skyward"] #tx.run > i:nth-child(-n+2) { display: block; top: -4%; height: 108%; width: 62%; }
+[data-theme="skyward"] #tx.run > i:nth-child(1) { left: 0; background: __CLOUD_L__ right center / cover no-repeat; animation: cloud-l .95s both; }
+[data-theme="skyward"] #tx.run > i:nth-child(2) { right: 0; background: __CLOUD_R__ left center / cover no-repeat; animation: cloud-r .95s both; }
+@keyframes cloud-l { 0% { transform: translateX(-105%); animation-timing-function: cubic-bezier(.5,0,.6,1); } 40%, 52% { transform: translateX(0); animation-timing-function: cubic-bezier(.4,0,.4,1); } 100% { transform: translateX(-105%); } }
+@keyframes cloud-r { 0% { transform: translateX(105%); animation-timing-function: cubic-bezier(.5,0,.6,1); } 40%, 52% { transform: translateX(0); animation-timing-function: cubic-bezier(.4,0,.4,1); } 100% { transform: translateX(105%); } }
+/* 飞艇按切换方向飞：点右边的标签就从左往右飞（船头朝右），点左边的就掉头从右往左飞 */
+[data-theme="skyward"] #tx.run > i:nth-child(3) { display: block; top: 44%; left: 0; width: 132px; height: 74px; background: __AIRSHIP2__ center / contain no-repeat; animation: ship-pass .95s ease-in-out both; }
+@keyframes ship-pass { 0%, 14% { transform: translateX(-150px) translateY(8px) rotate(2deg); opacity: 0; } 28% { opacity: 1; } 55% { transform: translateX(calc(min(100vw, 560px) / 2 - 66px)) translateY(-3px) rotate(-1deg); }
+  74% { opacity: 1; } 100% { transform: translateX(calc(min(100vw, 560px) + 20px)) translateY(-12px) rotate(-3deg); opacity: 0; } }
+[data-theme="skyward"] #tx.run[data-dir="b"] > i:nth-child(3) { animation-name: ship-pass-b; }
+@keyframes ship-pass-b { 0%, 14% { transform: translateX(calc(min(100vw, 560px) + 20px)) translateY(8px) scaleX(-1) rotate(2deg); opacity: 0; } 28% { opacity: 1; } 55% { transform: translateX(calc(min(100vw, 560px) / 2 - 66px)) translateY(-3px) scaleX(-1) rotate(-1deg); }
+  74% { opacity: 1; } 100% { transform: translateX(-150px) translateY(-12px) scaleX(-1) rotate(-3deg); opacity: 0; } }
+[data-theme="skyward"] #t-hero.react > .rx i { width: 9px; height: 9px; transform-origin: center; --d: 92px; animation: rx-burst 1s ease-out both;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+[data-theme="skyward"] #t-hero.react > .rx i:nth-child(1) { background: #d6574e; } [data-theme="skyward"] #t-hero.react > .rx i:nth-child(2) { background: #e58b3a; }
+[data-theme="skyward"] #t-hero.react > .rx i:nth-child(3) { background: #e2c045; } [data-theme="skyward"] #t-hero.react > .rx i:nth-child(4) { background: #3f9f6b; }
+[data-theme="skyward"] #t-hero.react > .rx i:nth-child(5) { background: #3f7fd0; } [data-theme="skyward"] #t-hero.react > .rx i:nth-child(6) { background: #7a5bc4; }
+[data-theme="skyward"] #t-hero.react > .rx i:nth-child(7) { width: 156px; height: 156px; clip-path: none; border-radius: 50%; background: none; box-shadow: 0 0 0 2px #e9c46a, 0 0 18px rgba(233,196,106,.7); animation: ring-pulse .8s ease-out both; }
+[data-theme="skyward"] #t-hero.react > .rx i:nth-child(8) { display: none; }
+[data-theme="skyward"] #t-hero > .rx::after { font-family: "Noto Serif SC", serif; color: #b98d3a; }
+[data-theme="skyward"] .hd::after { content: ""; position: absolute; bottom: -7px; left: 8px; width: 34px; height: 19px; pointer-events: none; opacity: .95; z-index: 1;
+  background: __AIRSHIP2__ center / contain no-repeat;
+  transform: translateX(calc(var(--sp, 0) * (min(100vw, 560px) - 56px))) translateY(calc(sin(var(--sy, 0) * .05rad) * 2px)) scaleX(var(--sd, 1));
+  transition: transform .45s cubic-bezier(.3,.7,.4,1); }
+/* 往上滑时飞艇掉头（scaleX 过渡经过 0，看起来像转了个身） */
+@media (prefers-reduced-motion: reduce) { [data-theme="skyward"] .hd::after { background-image: __AIRSHIP2S__; } }

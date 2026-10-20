@@ -1,0 +1,73 @@
+# 每次推送到 main（或在 Actions 页面手动点「Run workflow」）就自动编译一个新的 APK，
+# 放在这个仓库的 Releases 里（也会作为 Actions 的附件保存 30 天）。
+name: 打包 APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 生成页面（和网页版是同一个 callog.html）
+        run: |
+          python3 build.py
+          mkdir -p android-app/www
+          cp dist/callog.html android-app/www/index.html
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: android-app/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: 安装依赖，把页面放进安卓工程
+        working-directory: android-app
+        run: |
+          npm ci
+          npx cap sync android
+
+      - name: 解密签名文件（密码在仓库的 Secrets 里：CALLOG_KS_PASS）
+        env:
+          CALLOG_KS_PASS: ${{ secrets.CALLOG_KS_PASS }}
+        run: |
+          if [ -z "$CALLOG_KS_PASS" ]; then echo "::error::还没在 Settings → Secrets and variables → Actions 里添加 CALLOG_KS_PASS"; exit 1; fi
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in tools/callog.keystore.enc -out android-app/android/app/callog.keystore -pass env:CALLOG_KS_PASS
+
+      - name: 编译 APK
+        working-directory: android-app/android
+        env:
+          CALLOG_KS_PASS: ${{ secrets.CALLOG_KS_PASS }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: 改个好认的文件名
+        run: cp android-app/android/app/build/outputs/apk/release/app-release.apk "CalLog-1.0.${{ github.run_number }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CalLog-1.0.${{ github.run_number }}
+          path: CalLog-*.apk
+          retention-days: 30
+
+      - name: 发布到 Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: CalLog 1.0.${{ github.run_number }}
+          body: ${{ github.event.head_commit.message }}
+          files: CalLog-*.apk

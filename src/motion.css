@@ -1,0 +1,318 @@
+/* ═══════════════════════════════════════════════════════════
+   折叠 + 动效
+   原则：动效只放在装饰、进度和切换上；数字和文字本身不闪、不抖。
+   系统开启「减少动态效果」时，style.css 里的规则会关掉全部 CSS 动画，JS 里的 SVG 动画和数字滚动也不输出。
+   ═══════════════════════════════════════════════════════════ */
+
+/* ───────── 折叠 ───────── */
+.fold { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .34s cubic-bezier(.2,.8,.2,1), opacity .26s ease; }
+.fold-in { min-height: 0; }
+.folded > .fold { grid-template-rows: 0fr; opacity: 0; }
+.folded > .fold > .fold-in, .opening > .fold > .fold-in { overflow: hidden; }
+.fold-t { cursor: pointer; -webkit-user-select: none; user-select: none; }
+.card-t.fold-t { justify-content: flex-start; transition: margin-bottom .34s cubic-bezier(.2,.8,.2,1); }
+.fold-t > span:last-of-type { margin-left: auto; }
+.card.folded > .card-t { margin-bottom: 0; }
+.fold-ic { order: 3; flex-shrink: 0; width: 7px; height: 7px; margin: 0 3px 0 10px; border-right: 1.6px solid var(--muted); border-bottom: 1.6px solid var(--muted);
+  transform: translateY(2px) rotate(-135deg); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+.folded > .fold-t .fold-ic { transform: translateY(-2px) rotate(45deg); }
+.meal-h.fold-t { justify-content: flex-start; align-items: center; }
+.meal-n { font-size: 11px; color: var(--muted); margin-left: 6px; font-weight: 400; font-family: var(--font-body); }
+.meal:not(.folded) .meal-n { opacity: 0; }
+.cat-h.fold-t { display: flex; align-items: center; }
+.cat-h.fold-t > span { font-size: 11px; color: var(--muted); font-family: var(--font-num); }
+
+/* 今日主卡：营养素可以收成一行 */
+.mac-wrap { margin-top: 16px; }
+.mac-wrap .macros, .macros-mini { cursor: pointer; }
+.mac-wrap > .mac-mini { grid-template-rows: 0fr; opacity: 0; }
+.mac-wrap.folded > .mac-mini { grid-template-rows: 1fr; opacity: 1; }
+.mac-wrap > .mac-mini > .fold-in { overflow: hidden; }
+.macros-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.mm-t { display: flex; align-items: baseline; gap: 3px; font-size: 12px; color: var(--text2); white-space: nowrap; }
+.mm-t b { font-size: 15px; color: var(--text); font-family: var(--font-num); font-style: var(--num-style); margin-left: 2px; }
+.mm-t small { color: var(--muted); font-size: 11px; }
+.mm .bar { margin-top: 4px; }
+.mac-tog { display: flex; align-items: center; justify-content: center; margin: 4px auto -10px; width: 56px; height: 20px; border: none; background: none; padding: 0; }
+.mac-tog .fold-ic { margin: 0; transform: translateY(2px) rotate(-135deg); }
+.mac-wrap.folded > .mac-tog .fold-ic { transform: translateY(-2px) rotate(45deg); }
+#t-hero .bar i { transition: width .95s cubic-bezier(.2,.8,.2,1); }
+
+/* 主卡的装饰动画层（在内容下面，不会挡住数字） */
+#t-hero > .fx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+#t-hero > .fx i { position: absolute; display: none; }
+#t-hero-in { position: relative; z-index: 1; }
+
+/* ───────── 页面切换（每个主题有自己的进场方式） ───────── */
+html { overflow-x: hidden; }
+.scr.entering { animation: var(--page-in, pg-slide) var(--page-dur, .38s) var(--page-ease, cubic-bezier(.2,.8,.2,1)) var(--page-delay, 0s) var(--page-fill, backwards); }
+@keyframes pg-slide { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 26px)); } }
+@keyframes pg-whip { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 64px)) skewX(calc(var(--dir, 1) * -9deg)); } }
+@keyframes pg-paper { from { opacity: 0; transform: translateY(18px) rotate(-.6deg); } }
+@keyframes pg-crt { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes pg-pop { 0% { opacity: 0; transform: scale(.94) translateY(10px); } 60% { opacity: 1; transform: scale(1.012); } 100% { transform: none; } }
+@keyframes pg-push { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 44px)); } }
+@keyframes pg-ink { from { opacity: 0; filter: blur(3px); transform: scale(1.012); } }
+@keyframes pg-glitch {
+  0% { opacity: 0; clip-path: inset(0 0 72% 0); transform: translateX(-8px); }
+  20% { opacity: 1; clip-path: inset(34% 0 38% 0); transform: translateX(7px); }
+  40% { clip-path: inset(8% 0 18% 0); transform: translateX(-3px); }
+  60% { clip-path: inset(0 0 6% 0); transform: translateX(2px); }
+  80%, 100% { clip-path: inset(0 0 0 0); transform: none; }
+}
+@keyframes pg-drop-bounce { 0% { opacity: 0; transform: translateY(-16px); } 65% { opacity: 1; transform: translateY(3px); } 100% { transform: none; } }
+@keyframes pg-arcane { from { opacity: 0; transform: scale(.975); filter: brightness(1.7); } }
+@keyframes pg-rise { from { opacity: 0; transform: translateY(18px); } }
+@keyframes pg-pin { 0% { opacity: 0; transform: translateY(-20px) rotate(-.8deg); } 70% { opacity: 1; transform: translateY(3px) rotate(.15deg); } 100% { transform: none; } }
+@keyframes pg-swipe { from { clip-path: polygon(0 0, 0 0, -30% 100%, 0 100%); } to { clip-path: polygon(0 0, 130% 0, 100% 100%, 0 100%); } }
+@keyframes pg-shutter { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes pg-dark { from { opacity: 0; filter: brightness(.25); } }
+@keyframes pg-warp { from { opacity: 0; transform: scale(1.06); } }
+@keyframes pg-glow { from { opacity: 0; transform: translateY(10px); filter: brightness(1.25); } }
+
+[data-theme="sport"]      { --page-in: pg-whip; --page-dur: .34s; }
+[data-theme="planner"]    { --page-in: pg-paper; --page-dur: .45s; }
+[data-theme="terminal"]   { --page-in: pg-crt; --page-dur: .34s; --page-ease: steps(9, end); }
+[data-theme="candy"]      { --page-in: pg-pop; --page-dur: .46s; --page-ease: ease-out; }
+[data-theme="ios"]        { --page-in: pg-push; --page-dur: .42s; --page-ease: cubic-bezier(.32,.72,0,1); }
+[data-theme="sumi"]       { --page-in: pg-ink; --page-dur: .55s; --page-ease: ease-out; }
+[data-theme="neon"]       { --page-in: pg-glitch; --page-dur: .3s; --page-ease: steps(1, end); }
+[data-theme="steam"]      { --page-in: pg-drop-bounce; --page-dur: .44s; --page-ease: ease-out; }
+[data-theme="magic"]      { --page-in: pg-arcane; --page-dur: .55s; }
+[data-theme="nature"]     { --page-in: pg-rise; --page-dur: .5s; --page-ease: cubic-bezier(.2,.9,.3,1); }
+[data-theme="hunt"]       { --page-in: pg-pin; --page-dur: .5s; --page-ease: ease-out; }
+[data-theme="academy"]    { --page-in: pg-swipe; --page-dur: .42s; --page-ease: cubic-bezier(.6,0,.2,1); }
+[data-theme="industry"]   { --page-in: pg-shutter; --page-dur: .32s; --page-ease: steps(6, end); }
+[data-theme="expedition"] { --page-in: pg-dark; --page-dur: .6s; --page-ease: ease-out; }
+[data-theme="starwild"]   { --page-in: pg-warp; --page-dur: .5s; }
+[data-theme="skyward"]    { --page-in: pg-glow; --page-dur: .5s; }
+
+/* 底部导航：切换时当前图标弹一下 */
+.nav button.on .ic { animation: nav-pop .42s cubic-bezier(.3,1.6,.5,1); }
+@keyframes nav-pop { from { transform: scale(.72); } }
+
+/* ───────── 进度条持续流动（每个主题一种质感） ───────── */
+.bar i { position: relative; overflow: hidden; }
+.bar i::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 70%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--shine, rgba(255,255,255,.4)), transparent);
+  transform: translateX(-110%); animation: bar-shine var(--shine-dur, 3.4s) ease-in-out infinite;
+}
+.macros > div:nth-child(2) .bar i::after, .macros-mini > div:nth-child(2) .bar i::after { animation-delay: .3s; }
+.macros > div:nth-child(3) .bar i::after, .macros-mini > div:nth-child(3) .bar i::after { animation-delay: .6s; }
+@keyframes bar-shine { 0% { transform: translateX(-110%); } 60%, 100% { transform: translateX(160%); } }
+/* 条纹流动：伪元素比填充宽一个周期，平移一个周期后无缝循环 */
+@keyframes bar-flow { from { transform: translateX(0); } to { transform: translateX(var(--fp)); } }
+.flowbar .bar i::after, [data-theme="sport"] .bar i::after, [data-theme="steam"] .bar i::after, [data-theme="candy"] .bar i::after, [data-theme="neon"] .bar i::after {
+  left: calc(-1 * var(--fp)); right: 0; width: auto; transform: none; animation: bar-flow var(--flow-dur) linear infinite;
+}
+[data-theme="sport"]  { --fp: 15.45px; --flow-dur: .45s; }
+[data-theme="sport"] .bar i::after { background: repeating-linear-gradient(115deg, rgba(255,255,255,.26) 0 3px, transparent 3px 14px); }
+[data-theme="steam"]  { --fp: 16px; --flow-dur: 1.1s; }
+[data-theme="steam"] .bar i::after { background: repeating-linear-gradient(90deg, rgba(255,240,200,.22) 0 6px, transparent 6px 16px); }
+[data-theme="candy"]  { --fp: 14.14px; --flow-dur: .7s; }
+[data-theme="candy"] .bar i::after { background: repeating-linear-gradient(-45deg, rgba(255,255,255,.38) 0 5px, transparent 5px 10px); }
+[data-theme="neon"]   { --fp: 9px; --flow-dur: .45s; }
+[data-theme="neon"] .bar i::after { background: repeating-linear-gradient(90deg, rgba(15,18,24,.5) 0 2px, transparent 2px 9px); }
+/* 终端：末端一格闪烁 */
+[data-theme="terminal"] .bar i::after { left: auto; right: 0; width: 8px; transform: none; background: rgba(255,235,190,.55); animation: blink 1s steps(1) infinite; }
+/* 工业：扫描刻线 */
+[data-theme="industry"] .bar i::after { width: 2px; background: rgba(255,255,255,.85); transform: none; animation: scan-x 2.6s cubic-bezier(.6,0,.4,1) infinite; }
+@keyframes scan-x { 0% { left: 0; } 50% { left: calc(100% - 2px); } 100% { left: 0; } }
+/* 狩猎：刀刃反光，一闪而过 */
+[data-theme="hunt"] .bar i::after { width: 22%; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.8) 50%, transparent 70%); animation: bar-glint 4.4s ease-in infinite; }
+@keyframes bar-glint { 0% { transform: translateX(-120%); } 22%, 100% { transform: translateX(480%); } }
+[data-theme="planner"]    { --shine: rgba(255,255,255,.55); --shine-dur: 4s; }
+[data-theme="ios"]        { --shine: rgba(255,255,255,.35); }
+[data-theme="sumi"]       { --shine: rgba(0,0,0,.16); --shine-dur: 5.5s; }
+[data-theme="magic"]      { --shine: rgba(255,240,200,.5); --shine-dur: 3.8s; }
+[data-theme="nature"]     { --shine: rgba(255,255,240,.45); --shine-dur: 4.2s; }
+[data-theme="academy"]    { --shine: rgba(255,255,255,.6); --shine-dur: 2.8s; }
+[data-theme="expedition"] { --shine: rgba(255,170,120,.4); --shine-dur: 4.6s; }
+[data-theme="starwild"]   { --shine: rgba(255,255,255,.6); --shine-dur: 2.4s; }
+[data-theme="skyward"]    { --shine: rgba(255,246,214,.7); --shine-dur: 3.6s; }
+
+/* 公用关键帧 */
+@keyframes floaty { from { transform: translateY(-4px); } to { transform: translateY(4px); } }
+@keyframes stamp { 0% { opacity: 0; transform: scale(1.9) rotate(-14deg); } 70% { opacity: 1; transform: scale(.94) rotate(-4deg); } 100% { opacity: 1; } }
+
+/* ═══════════════ 各主题的装饰动画 ═══════════════ */
+
+/* 竞技：右上角斜纹滚动、主卡背景掠过的速度线、导航下划线滑入（圆环的计时光点在 SVG 里） */
+[data-theme="sport"] #t-hero::after { animation: sport-stripes 1.1s linear infinite; }
+@keyframes sport-stripes { to { background-position: 10.99px 0; } }
+[data-theme="sport"] #t-hero > .fx i:nth-child(-n+2) { display: block; height: 2px; width: 80px; right: -90px; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(242,106,42,.55)); animation: streak 3.2s linear infinite; }
+[data-theme="sport"] #t-hero > .fx i:nth-child(1) { top: 36%; }
+[data-theme="sport"] #t-hero > .fx i:nth-child(2) { top: 62%; width: 46px; animation-delay: 1.5s; animation-duration: 2.6s; }
+@keyframes streak { 0% { transform: translateX(0); opacity: 0; } 10% { opacity: 1; } 60%, 100% { transform: translateX(-640px); opacity: 0; } }
+[data-theme="sport"] .nav button.on::before { animation: bar-in .3s ease-out; }
+@keyframes bar-in { from { transform: skewX(-30deg) scaleX(0); } }
+
+/* 手帐：纸胶带被风吹得微微翘、回形针晃一晃、进入页面时荧光笔划过标题（铅笔圈在 SVG 里会抖） */
+[data-theme="planner"] #t-hero::before { animation: tape 3.6s ease-in-out infinite alternate; transform-origin: 20% 50%; }
+@keyframes tape { from { transform: translateX(-50%) rotate(-3deg); } to { transform: translateX(-50%) rotate(-1.2deg) translateY(-1px); } }
+[data-theme="planner"] #t-body::after { animation: clip 5.5s ease-in-out infinite; transform-origin: 50% 12%; }
+@keyframes clip { 0%, 100% { transform: rotate(8deg); } 50% { transform: rotate(2deg); } }
+[data-theme="planner"] .scr.entering .card-t { animation: hl-in .7s .12s ease-out backwards; }
+@keyframes hl-in { from { background-size: 0 .66em; } }
+
+/* 终端：一条亮带从上往下滚（显像管刷新），圆环下一格和进度条末端在闪 */
+[data-theme="terminal"] body::before {
+  content: ""; position: fixed; left: 0; right: 0; top: 0; height: 150px; z-index: 998; pointer-events: none;
+  background: linear-gradient(transparent, rgba(255,190,90,.05), transparent); animation: crt-roll 7s linear infinite;
+}
+@keyframes crt-roll { from { transform: translateY(-160px); } to { transform: translateY(100vh); } }
+[data-theme="terminal"] .nav button.on .ic { animation: none; }
+[data-theme="terminal"] .nav button.on .lb { animation: blink-in .32s steps(3, end); }
+@keyframes blink-in { 0% { opacity: 0; } 34% { opacity: 1; } 67% { opacity: 0; } }
+
+/* 糖果：糖针在抖、背景冒泡泡、导航图标蹦一下（糖球在 SVG 里弹） */
+[data-theme="candy"] #t-hero::after { animation: jiggle 2.4s ease-in-out infinite; transform-origin: 50% 80%; }
+@keyframes jiggle { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-7deg); } 40% { transform: rotate(5deg); } 60% { transform: rotate(-3deg); } 80% { transform: rotate(2deg); } }
+[data-theme="candy"] #t-hero > .fx i { display: block; border-radius: 50%; border: 2px solid rgba(31,27,58,.18); bottom: -24px; animation: bubble 7s ease-in infinite; }
+[data-theme="candy"] #t-hero > .fx i:nth-child(1) { width: 16px; height: 16px; right: 40%; }
+[data-theme="candy"] #t-hero > .fx i:nth-child(2) { width: 10px; height: 10px; right: 48%; animation-delay: 2.3s; animation-duration: 6s; border-color: rgba(255,92,138,.4); }
+[data-theme="candy"] #t-hero > .fx i:nth-child(3) { width: 12px; height: 12px; right: 60%; animation-delay: 4.1s; border-color: rgba(77,150,255,.4); }
+@keyframes bubble { 0% { transform: translate(0, 0); opacity: 0; } 15% { opacity: 1; } 50% { transform: translate(8px, -160px); } 100% { transform: translate(-6px, -330px); opacity: 0; } }
+[data-theme="candy"] .nav button.on .ic { animation: candy-bounce .5s cubic-bezier(.3,1.8,.5,1); }
+@keyframes candy-bounce { 0% { transform: translateY(6px) scale(.85, 1.1); } 60% { transform: translateY(-3px) scale(1.05, .95); } }
+
+/* 极简：只在 SVG 里的圆环末端有轻微高光，加上切换和数字滚动 */
+
+/* 墨：进入时朱印盖下去、标题前的笔触落笔、主卡背景有淡淡的雾气飘过（圆相墨迹在 SVG 里洇动） */
+[data-theme="sumi"] .scr.entering #t-hero::after { animation: sumi-stamp .55s .35s cubic-bezier(.3,1.6,.5,1) backwards; }
+@keyframes sumi-stamp { from { opacity: 0; transform: scale(1.9) rotate(-16deg); } }
+[data-theme="sumi"] .scr.entering .card-t::before { animation: dab-in .45s .15s ease-out backwards; transform-origin: 50% 0; }
+@keyframes dab-in { from { transform: scaleY(0); } }
+[data-theme="sumi"] #t-hero > .fx i:nth-child(-n+2) { display: block; height: 46px; width: 220px; border-radius: 50%; filter: blur(6px);
+  background: radial-gradient(closest-side, rgba(30,28,25,.06), transparent); animation: mist 18s ease-in-out infinite alternate; }
+[data-theme="sumi"] #t-hero > .fx i:nth-child(1) { top: 30%; left: -60px; }
+[data-theme="sumi"] #t-hero > .fx i:nth-child(2) { bottom: 10%; right: -80px; animation-duration: 23s; animation-direction: alternate-reverse; }
+@keyframes mist { from { transform: translateX(-30px); } to { transform: translateX(120px); } }
+
+/* 霓虹：主卡顶部信号带故障闪烁、一条扫描线扫过主卡、角落的像素噪点、顶栏警示斜纹滚动（圆环外圈在转、红色残影会跳） */
+[data-theme="neon"] #t-hero { animation: band-flick 4.3s steps(1) infinite; }
+@keyframes band-flick { 0%, 88%, 100% { border-top-color: var(--accent); } 90% { border-top-color: transparent; } 92% { border-top-color: #ff5c86; } 94% { border-top-color: var(--accent); } 96% { border-top-color: transparent; } }
+[data-theme="neon"] #t-hero > .fx i:nth-child(1) { display: block; left: 12px; width: 156px; height: 1px; top: 0;
+  background: linear-gradient(90deg, transparent, rgba(243,230,0,.45) 12%, transparent 28%, transparent 72%, rgba(243,230,0,.45) 88%, transparent); animation: scan-y 3.4s linear infinite; }
+[data-theme="neon"] #t-hero > .fx { bottom: auto; height: 190px; }
+@keyframes scan-y { from { top: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } to { top: 100%; opacity: 0; } }
+[data-theme="neon"] #t-hero > .fx i:nth-child(2), [data-theme="neon"] #t-hero > .fx i:nth-child(3) { display: block; width: 22px; height: 3px; background: #3ad6f0; opacity: 0; animation: pixel-noise 3.1s steps(1) infinite; }
+[data-theme="neon"] #t-hero > .fx i:nth-child(3) { background: #ff5c86; width: 12px; animation-duration: 4.7s; animation-delay: 1.2s; }
+/* 像素噪点只出现在主卡顶部的空白边上，不会靠近任何数字 */
+@keyframes pixel-noise {
+  0% { opacity: .8; right: 30px; top: 5px; } 4% { opacity: 0; }
+  31% { opacity: .7; right: 120px; top: 7px; } 34% { opacity: 0; }
+  62% { opacity: .8; right: 64px; top: 4px; } 64% { opacity: .5; right: 70px; top: 6px; } 67% { opacity: 0; }
+}
+[data-theme="neon"] .hd::after { animation: hazard 1s linear infinite; }
+@keyframes hazard { to { background-position: 14.14px 0; } }
+[data-theme="neon"] .nav button.on::before { animation: nav-flick .4s steps(1); }
+@keyframes nav-flick { 0% { opacity: 0; } 25% { opacity: 1; } 50% { opacity: 0; } 75% { opacity: 1; } }
+
+/* 蒸汽：主卡右上角的排气管冒蒸汽、旁边的齿轮在转、所有标题前的齿轮慢慢转（压力表指针在 SVG 里不规律抖动） */
+[data-theme="steam"] #t-hero::after {   /* 排气管 */
+  content: ""; position: absolute; top: 4px; right: 14px; width: 18px; height: 22px; pointer-events: none; z-index: 2;
+  background: linear-gradient(90deg, #6e5130, #e6c47e 45%, #8a6430) center 6px / 8px 16px no-repeat,
+              linear-gradient(90deg, #6e5130, #f0d48a 45%, #8a6430) center 0 / 14px 6px no-repeat;
+}
+[data-theme="steam"] #t-hero > .fx { overflow: visible; }
+[data-theme="steam"] #t-hero > .fx i:nth-child(-n+2) { display: block; top: -6px; right: 12px; width: 22px; height: 22px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(244,234,212,.75), rgba(244,234,212,.25) 45%, rgba(244,234,212,0) 70%); animation: puff 3.4s ease-out infinite; }
+[data-theme="steam"] #t-hero > .fx i:nth-child(2) { animation-delay: 1.7s; }
+@keyframes puff { 0% { transform: translate(0, 10px) scale(.4); opacity: 0; } 15% { opacity: .9; } 100% { transform: translate(-26px, -50px) scale(2.6); opacity: 0; } }
+[data-theme="steam"] #t-hero > .fx i:nth-child(3) { display: block; top: 8px; right: 38px; width: 16px; height: 16px; background: #b8862f;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='8.2' fill='none' stroke='%23000' stroke-width='4.6' stroke-dasharray='3.22 3.22'/%3E%3Ccircle cx='12' cy='12' r='6.4' fill='none' stroke='%23000' stroke-width='3.4'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='8.2' fill='none' stroke='%23000' stroke-width='4.6' stroke-dasharray='3.22 3.22'/%3E%3Ccircle cx='12' cy='12' r='6.4' fill='none' stroke='%23000' stroke-width='3.4'/%3E%3C/svg%3E") center / contain no-repeat; animation: spin 6s linear infinite; }
+[data-theme="steam"] .card-t::before { animation: spin 14s linear infinite; }
+
+/* 魔法：主卡里有光点缓缓升起、四角角花微微发亮、标题前的菱形一闪一闪（符文圈和六芒星在 SVG 里转） */
+[data-theme="magic"] #t-hero > .fx i { display: block; width: 4px; height: 4px; border-radius: 50%; bottom: -8px; background: #f6e3a6;
+  box-shadow: 0 0 6px 2px rgba(246,227,166,.55); animation: mote 7s ease-in infinite; }
+[data-theme="magic"] #t-hero > .fx i:nth-child(1) { left: 46%; }
+[data-theme="magic"] #t-hero > .fx i:nth-child(2) { left: 58%; animation-delay: 2.4s; animation-duration: 8s; background: #9fd0ff; box-shadow: 0 0 6px 2px rgba(110,164,245,.5); }
+[data-theme="magic"] #t-hero > .fx i:nth-child(3) { left: 30%; animation-delay: 4.6s; animation-duration: 9s; }
+@keyframes mote { 0% { transform: translate(0, 0); opacity: 0; } 15% { opacity: .9; } 50% { transform: translate(10px, -150px); } 100% { transform: translate(-8px, -300px); opacity: 0; } }
+[data-theme="magic"] .card::before { animation: orn-glow 4.5s ease-in-out infinite; }
+@keyframes orn-glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+[data-theme="magic"] .card-t::before { animation: diamond 2.8s ease-in-out infinite; }
+@keyframes diamond { 0%, 100% { transform: rotate(45deg) scale(1); opacity: 1; } 50% { transform: rotate(45deg) scale(.6); opacity: .55; } }
+
+/* 自然：主卡里有树叶飘落、右上角的枝条随风摆、标题前的小叶子在晃（藤蔓生长和叶子摆动在 SVG 里） */
+[data-theme="nature"] #t-hero::after { transform-origin: 100% 0; animation: sprig 4.6s ease-in-out infinite alternate; }
+@keyframes sprig { from { transform: rotate(-4deg); } to { transform: rotate(3deg); } }
+[data-theme="nature"] #t-hero > .fx i { display: block; top: -20px; width: 12px; height: 12px; background: var(--leaf2); opacity: 0;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20C4 10 10 4 21 3c0 11-6 17-16 17z' fill='%23000'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20C4 10 10 4 21 3c0 11-6 17-16 17z' fill='%23000'/%3E%3C/svg%3E") center / contain no-repeat; animation: leaf-fall 11s linear infinite; }
+[data-theme="nature"] #t-hero > .fx i:nth-child(1) { left: 62%; }
+[data-theme="nature"] #t-hero > .fx i:nth-child(2) { left: 84%; width: 9px; height: 9px; background: var(--leaf); animation-delay: 3.8s; animation-duration: 13s; }
+[data-theme="nature"] #t-hero > .fx i:nth-child(3) { left: 40%; width: 10px; height: 10px; background: #d8a23a; animation-delay: 7.2s; animation-duration: 12s; }
+@keyframes leaf-fall {
+  0% { transform: translate(0, 0) rotate(0); opacity: 0; } 8% { opacity: .75; }
+  25% { transform: translate(-22px, 80px) rotate(80deg); } 50% { transform: translate(10px, 160px) rotate(170deg); }
+  75% { transform: translate(-16px, 240px) rotate(260deg); opacity: .75; } 100% { transform: translate(6px, 330px) rotate(360deg); opacity: 0; }
+}
+[data-theme="nature"] .card-t::before { transform-origin: 0 100%; animation: leaf-sway 3.2s ease-in-out infinite alternate; }
+@keyframes leaf-sway { from { transform: rotate(-10deg); } to { transform: rotate(8deg); } }
+
+/* 狩猎：进入时盖上红蜡封、标题爪痕「划」出来、顶部的灯火在摇曳（皮带缝线在 SVG 里走动） */
+[data-theme="hunt"] #t-hero > .fx i:nth-child(3) { display: block; left: 7px; top: 7px; width: 30px; height: 30px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M20 2c5 0 7 3 10 4s7 1 8 6-1 6 0 9 2 7-2 10-6 2-9 4-5 4-8 3-5-3-8-4-6-2-7-6 1-6 0-9-2-6 1-9 6-2 8-4 5-4 7-4z' fill='%239b2a1c'/%3E%3Ccircle cx='20' cy='20' r='11.5' fill='none' stroke='%23c2513c' stroke-width='1.6'/%3E%3Cpath d='M15 27l4-13M19.5 28l4-13M24 28l3-10' stroke='%23e07a5f' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-theme="hunt"] .scr.entering #t-hero > .fx i:nth-child(3) { animation: stamp .55s .3s cubic-bezier(.3,1.5,.5,1) backwards; }
+[data-theme="hunt"] .scr.entering .card-t::before { animation: claw-in .4s .2s ease-out backwards; }
+@keyframes claw-in { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+[data-theme="hunt"] body::before { content: ""; position: fixed; z-index: -1; pointer-events: none; left: 0; right: 0; top: 0; height: 420px;
+  background: radial-gradient(420px 260px at 50% -40px, rgba(255,176,84,.22), transparent 70%); animation: lantern 4.4s ease-in-out infinite; }
+@keyframes lantern { 0%, 100% { opacity: .7; } 18% { opacity: 1; } 34% { opacity: .78; } 52% { opacity: .95; } 76% { opacity: .66; } }
+
+/* 学园：主卡三角漂浮、进入时顶部蓝条滑出、主卡背景里的小几何在飘（圆环外圈在 SVG 里转） */
+[data-theme="academy"] #t-hero::after { animation: floaty 3.4s ease-in-out infinite alternate; }
+[data-theme="academy"] .scr.entering #t-hero::before { animation: slash-in .5s .15s cubic-bezier(.2,.8,.2,1) backwards; transform-origin: 0 50%; }
+@keyframes slash-in { from { transform: skewX(-35deg) scaleX(0); } }
+[data-theme="academy"] #t-hero > .fx i { display: block; opacity: .5; animation: drift 9s ease-in-out infinite alternate; }
+[data-theme="academy"] #t-hero > .fx i:nth-child(1) { left: 54%; bottom: 22px; width: 0; height: 0; border: 6px solid transparent; border-bottom: 10px solid rgba(26,150,240,.35); border-top: 0; }
+[data-theme="academy"] #t-hero > .fx i:nth-child(2) { right: 18px; bottom: 34%; width: 9px; height: 9px; border-radius: 50%; border: 2px solid rgba(34,191,168,.45); animation-duration: 7s; }
+[data-theme="academy"] #t-hero > .fx i:nth-child(3) { left: 40%; top: 10px; width: 10px; height: 10px; animation-duration: 11s;
+  background: linear-gradient(rgba(255,180,0,.6), rgba(255,180,0,.6)) center / 100% 2px no-repeat, linear-gradient(rgba(255,180,0,.6), rgba(255,180,0,.6)) center / 2px 100% no-repeat; }
+@keyframes drift { 0% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(14px, -10px) rotate(40deg); } 100% { transform: translate(-8px, 6px) rotate(-20deg); } }
+
+/* 工业：背景图纸缓慢旋转、主卡里一道竖向扫描线、进入时四角「锁定」框收紧（圆环外圈在 SVG 里机械地转动） */
+[data-theme="industry"] body::before { content: ""; position: fixed; z-index: -1; pointer-events: none; top: 30px; right: -110px; width: 360px; height: 360px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cg fill='none' stroke='%23161616' stroke-opacity='.09' stroke-width='1'%3E%3Ccircle cx='180' cy='180' r='150'/%3E%3Ccircle cx='180' cy='180' r='110' stroke-dasharray='4 4'/%3E%3Ccircle cx='180' cy='180' r='60'/%3E%3Cpath d='M180 10v340M10 180h340'/%3E%3Cpath d='M74 74l212 212M286 74L74 286' stroke-dasharray='2 6'/%3E%3Cline x1='330.0' y1='180.0' x2='312.0' y2='180.0'/%3E%3Cline x1='329.4' y1='193.1' x2='321.5' y2='192.4'/%3E%3Cline x1='327.7' y1='206.0' x2='319.8' y2='204.7'/%3E%3Cline x1='324.9' y1='218.8' x2='317.2' y2='216.8'/%3E%3Cline x1='321.0' y1='231.3' x2='313.4' y2='228.6'/%3E%3Cline x1='315.9' y1='243.4' x2='308.7' y2='240.0'/%3E%3Cline x1='309.9' y1='255.0' x2='294.3' y2='246.0'/%3E%3Cline x1='302.9' y1='266.0' x2='296.3' y2='261.4'/%3E%3Cline x1='294.9' y1='276.4' x2='288.8' y2='271.3'/%3E%3Cline x1='286.1' y1='286.1' x2='280.4' y2='280.4'/%3E%3Cline x1='276.4' y1='294.9' x2='271.3' y2='288.8'/%3E%3Cline x1='266.0' y1='302.9' x2='261.4' y2='296.3'/%3E%3Cline x1='255.0' y1='309.9' x2='246.0' y2='294.3'/%3E%3Cline x1='243.4' y1='315.9' x2='240.0' y2='308.7'/%3E%3Cline x1='231.3' y1='321.0' x2='228.6' y2='313.4'/%3E%3Cline x1='218.8' y1='324.9' x2='216.8' y2='317.2'/%3E%3Cline x1='206.0' y1='327.7' x2='204.7' y2='319.8'/%3E%3Cline x1='193.1' y1='329.4' x2='192.4' y2='321.5'/%3E%3Cline x1='180.0' y1='330.0' x2='180.0' y2='312.0'/%3E%3Cline x1='166.9' y1='329.4' x2='167.6' y2='321.5'/%3E%3Cline x1='154.0' y1='327.7' x2='155.3' y2='319.8'/%3E%3Cline x1='141.2' y1='324.9' x2='143.2' y2='317.2'/%3E%3Cline x1='128.7' y1='321.0' x2='131.4' y2='313.4'/%3E%3Cline x1='116.6' y1='315.9' x2='120.0' y2='308.7'/%3E%3Cline x1='105.0' y1='309.9' x2='114.0' y2='294.3'/%3E%3Cline x1='94.0' y1='302.9' x2='98.6' y2='296.3'/%3E%3Cline x1='83.6' y1='294.9' x2='88.7' y2='288.8'/%3E%3Cline x1='73.9' y1='286.1' x2='79.6' y2='280.4'/%3E%3Cline x1='65.1' y1='276.4' x2='71.2' y2='271.3'/%3E%3Cline x1='57.1' y1='266.0' x2='63.7' y2='261.4'/%3E%3Cline x1='50.1' y1='255.0' x2='65.7' y2='246.0'/%3E%3Cline x1='44.1' y1='243.4' x2='51.3' y2='240.0'/%3E%3Cline x1='39.0' y1='231.3' x2='46.6' y2='228.6'/%3E%3Cline x1='35.1' y1='218.8' x2='42.8' y2='216.8'/%3E%3Cline x1='32.3' y1='206.0' x2='40.2' y2='204.7'/%3E%3Cline x1='30.6' y1='193.1' x2='38.5' y2='192.4'/%3E%3Cline x1='30.0' y1='180.0' x2='48.0' y2='180.0'/%3E%3Cline x1='30.6' y1='166.9' x2='38.5' y2='167.6'/%3E%3Cline x1='32.3' y1='154.0' x2='40.2' y2='155.3'/%3E%3Cline x1='35.1' y1='141.2' x2='42.8' y2='143.2'/%3E%3Cline x1='39.0' y1='128.7' x2='46.6' y2='131.4'/%3E%3Cline x1='44.1' y1='116.6' x2='51.3' y2='120.0'/%3E%3Cline x1='50.1' y1='105.0' x2='65.7' y2='114.0'/%3E%3Cline x1='57.1' y1='94.0' x2='63.7' y2='98.6'/%3E%3Cline x1='65.1' y1='83.6' x2='71.2' y2='88.7'/%3E%3Cline x1='73.9' y1='73.9' x2='79.6' y2='79.6'/%3E%3Cline x1='83.6' y1='65.1' x2='88.7' y2='71.2'/%3E%3Cline x1='94.0' y1='57.1' x2='98.6' y2='63.7'/%3E%3Cline x1='105.0' y1='50.1' x2='114.0' y2='65.7'/%3E%3Cline x1='116.6' y1='44.1' x2='120.0' y2='51.3'/%3E%3Cline x1='128.7' y1='39.0' x2='131.4' y2='46.6'/%3E%3Cline x1='141.2' y1='35.1' x2='143.2' y2='42.8'/%3E%3Cline x1='154.0' y1='32.3' x2='155.3' y2='40.2'/%3E%3Cline x1='166.9' y1='30.6' x2='167.6' y2='38.5'/%3E%3Cline x1='180.0' y1='30.0' x2='180.0' y2='48.0'/%3E%3Cline x1='193.1' y1='30.6' x2='192.4' y2='38.5'/%3E%3Cline x1='206.0' y1='32.3' x2='204.7' y2='40.2'/%3E%3Cline x1='218.8' y1='35.1' x2='216.8' y2='42.8'/%3E%3Cline x1='231.3' y1='39.0' x2='228.6' y2='46.6'/%3E%3Cline x1='243.4' y1='44.1' x2='240.0' y2='51.3'/%3E%3Cline x1='255.0' y1='50.1' x2='246.0' y2='65.7'/%3E%3Cline x1='266.0' y1='57.1' x2='261.4' y2='63.7'/%3E%3Cline x1='276.4' y1='65.1' x2='271.3' y2='71.2'/%3E%3Cline x1='286.1' y1='73.9' x2='280.4' y2='79.6'/%3E%3Cline x1='294.9' y1='83.6' x2='288.8' y2='88.7'/%3E%3Cline x1='302.9' y1='94.0' x2='296.3' y2='98.6'/%3E%3Cline x1='309.9' y1='105.0' x2='294.3' y2='114.0'/%3E%3Cline x1='315.9' y1='116.6' x2='308.7' y2='120.0'/%3E%3Cline x1='321.0' y1='128.7' x2='313.4' y2='131.4'/%3E%3Cline x1='324.9' y1='141.2' x2='317.2' y2='143.2'/%3E%3Cline x1='327.7' y1='154.0' x2='319.8' y2='155.3'/%3E%3Cline x1='329.4' y1='166.9' x2='321.5' y2='167.6'/%3E%3C/g%3E%3Cg fill='%23161616' fill-opacity='.14' font-family='monospace' font-size='9'%3E%3Ctext x='186' y='26'%3E000%3C/text%3E%3Ctext x='330' y='176'%3E090%3C/text%3E%3Ctext x='186' y='346'%3E180%3C/text%3E%3Ctext x='16' y='176'%3E270%3C/text%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat; animation: spin 140s linear infinite; }
+[data-theme="industry"] #t-hero > .fx i:nth-child(1) { display: block; top: 0; height: 185px; width: 1px; left: 0;
+  background: linear-gradient(transparent, rgba(22,22,22,.28), transparent); animation: scan-x 5.5s ease-in-out infinite; }
+[data-theme="industry"] .scr.entering #t-hero > .fx i:nth-child(2) { display: block; inset: 6px; animation: lock-on .7s .1s cubic-bezier(.2,.8,.2,1) both;
+  background: linear-gradient(#ffd400,#ffd400) left top / 18px 3px no-repeat, linear-gradient(#ffd400,#ffd400) left top / 3px 18px no-repeat,
+              linear-gradient(#ffd400,#ffd400) right top / 18px 3px no-repeat, linear-gradient(#ffd400,#ffd400) right top / 3px 18px no-repeat,
+              linear-gradient(#ffd400,#ffd400) left bottom / 18px 3px no-repeat, linear-gradient(#ffd400,#ffd400) left bottom / 3px 18px no-repeat,
+              linear-gradient(#ffd400,#ffd400) right bottom / 18px 3px no-repeat, linear-gradient(#ffd400,#ffd400) right bottom / 3px 18px no-repeat; }
+@keyframes lock-on { 0% { transform: scale(1.12); opacity: 0; } 40% { transform: scale(1); opacity: 1; } 75% { opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+[data-theme="industry"] .nav button.on::before { animation: ind-in .3s steps(3, end); }
+@keyframes ind-in { from { transform: scaleX(0); } }
+
+/* 远征：底部有雾慢慢飘、余烬上升（已有）、点亮的刻记像火光一样明暗（在 SVG 里） */
+[data-theme="expedition"] body::after { content: ""; position: fixed; z-index: -1; pointer-events: none; left: -50%; width: 200%; bottom: 0; height: 200px;
+  background: radial-gradient(40% 100% at 30% 100%, rgba(150,135,120,.12), transparent 70%), radial-gradient(35% 90% at 72% 100%, rgba(150,135,120,.09), transparent 70%);
+  animation: fog 28s ease-in-out infinite alternate; }
+@keyframes fog { from { transform: translateX(-8%); } to { transform: translateX(8%); } }
+[data-theme="expedition"] .nav button.on::before { animation: bar-in2 .35s ease-out; }
+@keyframes bar-in2 { from { transform: scaleX(0); } }
+
+/* 星野：偶尔有彗星划过、星星闪烁（已有）、主卡顶部一道信号脉冲（卫星绕行、行星光环摆动在 SVG 里） */
+[data-theme="starwild"] body::after { content: ""; position: fixed; z-index: -1; pointer-events: none; top: 0; left: 0; width: 140px; height: 2px; border-radius: 2px; opacity: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.9) 70%, #fff); animation: comet 19s linear infinite 4s; }
+@keyframes comet { 0% { transform: translate(105vw, 70px) rotate(155deg); opacity: 0; } 2% { opacity: .9; } 7% { transform: translate(-30vw, 44vh) rotate(155deg); opacity: 0; } 100% { transform: translate(-30vw, 44vh) rotate(155deg); opacity: 0; } }
+[data-theme="starwild"] #t-hero > .fx i:nth-child(1) { display: block; top: 6px; left: 20px; right: 20px; height: 2px; opacity: .7;
+  background: linear-gradient(90deg, transparent, rgba(255,143,69,.9), transparent) 0 0 / 30% 100% no-repeat; animation: pulse-run 2.8s ease-in-out infinite; }
+@keyframes pulse-run { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+[data-theme="starwild"] .nav button.on .ic { animation: nav-pop .42s cubic-bezier(.3,1.6,.5,1), star-glow 3s ease-in-out .4s infinite; }
+@keyframes star-glow { 0%, 100% { filter: none; } 50% { filter: drop-shadow(0 0 5px rgba(255,143,69,.7)); } }
+
+/* 苍穹：飞艇上下浮动、导航上的金色菱形闪烁、主按钮上掠过一道光（宝珠闪光、金色光流在 SVG 里） */
+[data-theme="skyward"] #t-hero::after { animation: bob 4s ease-in-out infinite alternate; }
+@keyframes bob { from { transform: translateY(-2px) rotate(-1.5deg); } to { transform: translateY(3px) rotate(1.5deg); } }
+[data-theme="skyward"] .nav button.on::before { animation: diamond 2.4s ease-in-out infinite; }
+[data-theme="skyward"] #t-hero > .fx i { display: block; width: 9px; height: 9px; opacity: 0; animation: sparkle 3.6s ease-in-out infinite;
+  background: radial-gradient(circle, #fff 0 1.2px, transparent 1.6px), linear-gradient(#e9c46a, #e9c46a) center / 100% 1.4px no-repeat, linear-gradient(#e9c46a, #e9c46a) center / 1.4px 100% no-repeat; }
+[data-theme="skyward"] #t-hero > .fx i:nth-child(1) { right: 26%; top: 12px; }
+[data-theme="skyward"] #t-hero > .fx i:nth-child(2) { right: 9%; top: 46%; animation-delay: 1.2s; }
+[data-theme="skyward"] #t-hero > .fx i:nth-child(3) { right: 40%; bottom: 14px; animation-delay: 2.4s; }
+@keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(.3) rotate(0); } 30% { opacity: 1; transform: scale(1) rotate(45deg); } 55% { opacity: 0; transform: scale(.4) rotate(90deg); } }
