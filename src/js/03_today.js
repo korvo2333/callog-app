@@ -18,6 +18,7 @@ function renderToday() {
   renderComposeMeal();
   renderHero();
   renderActivity();
+  renderMuscles();
   renderBodyQuick();
   renderAI();
   renderList();
@@ -368,7 +369,7 @@ function saveSteps(clear) {
 }
 
 // 有氧：名称 + 手表显示的消耗 + 计入 %（默认用设置里的比例）
-function openBurn(e, preset) {
+function openBurn(e) {
   const editing = e && e.id;
   const legacy = !formulaOn(editing ? e.date : VIEW.date);
   if (legacy) {   // 旧日子（新公式之前）：保持原来的「额外消耗」
@@ -381,14 +382,14 @@ function openBurn(e, preset) {
       </div>`);
     return;
   }
-  const k0 = editing ? cardioKind(e) : preset && preset.k || (LOCAL.cardioKind || 'ell');
+  const k0 = editing ? cardioKind(e) : (LOCAL.cardioKind || 'ell');
   BURN = { k: k0, pct: editing ? cardioPct(e) : cardioKindPct(k0), k0 };
   openSheet('有氧', `
     <div class="cd-opts" role="radiogroup" aria-label="种类">
       ${CARDIO_KINDS.map(c => `<button class="cd-opt" data-k="${c.k}" role="radio" onclick="pickCardio('${c.k}')">
         <span class="act-ic">${cardioIcon(c.k)}</span><span class="cd-l">${c.name}</span><small class="num" data-pct="${c.k}">${c.mins ? '按时长' : cardioKindPct(c.k) + '%'}</small></button>`).join('')}
     </div>
-    <input class="in" id="x-name" value="${esc(editing && k0 === 'other' && e.name !== '其他' && e.name !== '有氧' ? e.name : preset && preset.name || '')}" placeholder="名称（选填）：游泳、单车、拳击…" style="margin-top:10px">
+    <input class="in" id="x-name" value="${esc(editing && k0 === 'other' && e.name !== '其他' && e.name !== '有氧' ? e.name : '')}" placeholder="名称（选填）：游泳、单车、拳击…" style="margin-top:10px">
     <div class="grid2 cd-in" id="x-in">
       <div><label class="lbl">手表显示的 kcal</label><input class="in" id="x-kcal" type="number" inputmode="numeric" value="${editing ? e.kcal : ''}" placeholder="0" oninput="burnPreview()"></div>
       <div class="cd-mins"><label class="lbl">时长（分钟）</label><input class="in" id="x-mins" type="number" inputmode="decimal" value="${editing && burnMins(e) ? burnMins(e) : ''}" placeholder="0" oninput="burnPreview()"></div>

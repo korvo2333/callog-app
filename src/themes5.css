@@ -9,7 +9,7 @@
 
 /* 底部导航：黄色信号条滑到当前标签，品红色残影慢一拍跟上；当前图标四角有取景框 */
 [data-theme="neon"] .nav button.on::before { display: none; }
-[data-theme="neon"] .nav::before, [data-theme="neon"] .nav::after { content: ""; position: absolute; left: 0; width: calc(100% / var(--nav-n, 5)); pointer-events: none;
+[data-theme="neon"] .nav::before, [data-theme="neon"] .nav::after { content: ""; position: absolute; left: 0; width: 20%; pointer-events: none;
   transform: translateX(calc(var(--nav-i, 0) * 100%)); }
 [data-theme="neon"] .nav::before { top: 1px; height: 2px; background: linear-gradient(90deg, transparent 26%, #ff5c86 26% 74%, transparent 74%); opacity: .75;
   transition: transform .46s .07s cubic-bezier(.7,0,.2,1); }
@@ -74,7 +74,7 @@
 [data-theme="steam"] { --enter-ms: 1250; }
 
 /* 底部导航：一根黄铜滑条带着小齿轮滚到当前标签（齿轮边走边转，到位时回弹一下） */
-[data-theme="steam"] .nav::before, [data-theme="steam"] .nav::after { content: ""; position: absolute; left: 0; width: calc(100% / var(--nav-n, 5)); pointer-events: none; }
+[data-theme="steam"] .nav::before, [data-theme="steam"] .nav::after { content: ""; position: absolute; left: 0; width: 20%; pointer-events: none; }
 [data-theme="steam"] .nav::before { top: -1px; height: 3px; background: linear-gradient(90deg, transparent 24%, #f0d090 24%, #c9953f 76%, transparent 76%);
   transform: translateX(calc(var(--nav-i, 0) * 100%)); transition: transform .62s cubic-bezier(.45,1.45,.45,1); }
 [data-theme="steam"] .nav::after { top: -8px; height: 16px; background: linear-gradient(180deg, #f0d090, #b8862f);
@@ -131,7 +131,7 @@
 [data-theme="magic"] { --enter-ms: 1250; }
 
 /* 底部导航：一颗四芒星滑到当前标签，一边走一边转，后面拖着金紫色的光 */
-[data-theme="magic"] .nav::before, [data-theme="magic"] .nav::after { content: ""; position: absolute; left: 0; width: calc(100% / var(--nav-n, 5)); pointer-events: none; }
+[data-theme="magic"] .nav::before, [data-theme="magic"] .nav::after { content: ""; position: absolute; left: 0; width: 20%; pointer-events: none; }
 [data-theme="magic"] .nav::before { top: -3px; height: 6px; background: radial-gradient(closest-side, rgba(246,227,166,.85), rgba(160,120,255,.35) 55%, rgba(160,120,255,0));
   transform: translateX(calc(var(--nav-i, 0) * 100%)) scaleX(1.5); transition: transform .95s cubic-bezier(.4,0,.2,1); }
 [data-theme="magic"] .nav::after { top: -8px; height: 16px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0' stop-color='%23fffbe8'/%3E%3Cstop offset='.45' stop-color='%23f6e3a6'/%3E%3Cstop offset='1' stop-color='%23c9a24a'/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath d='M8 0L9.6 6.4 16 8 9.6 9.6 8 16 6.4 9.6 0 8 6.4 6.4Z' fill='url(%23g)'/%3E%3C/svg%3E") center / 15px 15px no-repeat;
@@ -199,7 +199,7 @@
 
 /* 底部导航：浅绿的圆角底块像有弹性一样滑到当前标签，旁边一片小叶子慢半拍跟上 */
 [data-theme="nature"] .nav button.on .ic { background: none; }
-[data-theme="nature"] .nav::before, [data-theme="nature"] .nav::after { content: ""; position: absolute; left: 0; width: calc(100% / var(--nav-n, 5)); pointer-events: none; }
+[data-theme="nature"] .nav::before, [data-theme="nature"] .nav::after { content: ""; position: absolute; left: 0; width: 20%; pointer-events: none; }
 [data-theme="nature"] .nav::before { top: 7px; height: 28px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='54' height='28' viewBox='0 0 54 28'%3E%3Crect width='54' height='28' rx='14' fill='%234d7a46' fill-opacity='.13'/%3E%3C/svg%3E") center / 54px 28px no-repeat;
   transform: translateX(calc(var(--nav-i, 0) * 100%)); transition: transform .55s cubic-bezier(.3,1.45,.45,1); }
 [data-theme="nature"] .nav::after { top: 2px; height: 12px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M1 11C1 5 5 1 11 1c0 6-4 10-10 10z' fill='%238db36f'/%3E%3Cpath d='M2 10L8 4' stroke='%23fbfaf3' stroke-opacity='.7' stroke-width='.8'/%3E%3C/svg%3E") calc(50% + 26px) 0 / 11px 11px no-repeat;
@@ -267,8 +267,8 @@
 
 /* 底部导航：带黑边的黄色滑块像机械臂一样「嗒」地移到当前标签，下面的小三角慢一拍对准 */
 [data-theme="industry"] .nav button.on::before { display: none; }
-[data-theme="industry"] .nav::before, [data-theme="industry"] .nav::after { content: ""; position: absolute; left: calc(50% / var(--nav-n, 5) - 4%); width: 8%; pointer-events: none;
-  transform: translateX(calc(var(--nav-i, 0) * 1250% / var(--nav-n, 5))); }
+[data-theme="industry"] .nav::before, [data-theme="industry"] .nav::after { content: ""; position: absolute; left: 6%; width: 8%; pointer-events: none;
+  transform: translateX(calc(var(--nav-i, 0) * 250%)); }
 [data-theme="industry"] .nav::before { top: -1px; height: 4px; background: #ffd400; outline: 1px solid #161616; transition: transform .36s cubic-bezier(.85,0,.15,1); }
 [data-theme="industry"] .nav::after { top: 4px; height: 5px; background: #161616; clip-path: polygon(35% 0, 65% 0, 50% 100%); transition: transform .46s .06s cubic-bezier(.85,0,.15,1); }
 

@@ -78,7 +78,7 @@ function seedDB() {
   return { log: [], body: [], settings: {}, ai: [], cats: [], foods: [] };   // 不预置任何食物和分类
 }
 
-let DB = Object.assign({ log: [], foods: [], cats: [], body: [], steps: [], settings: {}, ai: [], exercises: [], plan: [], sets: [] }, lsLoad(LS.db, null) || seedDB());
+let DB = Object.assign({ log: [], foods: [], cats: [], body: [], steps: [], settings: {}, ai: [] }, lsLoad(LS.db, null) || seedDB());
 let OUTBOX = lsLoad(LS.outbox, []);
 let LOCAL = Object.assign({ sheetsUrl: '', apiUrl: '', token: '', theme: 'lime', lastSync: '', lastPull: 0, server: null, folds: {} }, lsLoad(LS.local, {}));
 const saveDB = () => lsSave(LS.db, DB);
@@ -130,7 +130,7 @@ function heroReact() {
 const FOLD_DEFAULT = {
   'week:daily': 1, 'week:w8': 1, 'week:tdee': 1,
   'body:bf': 1, 'body:lean': 1, 'body:muscle': 1, 'body:recs': 1,
-  'set:periods': 1, 'set:plan': 1, 'set:ai': 1, 'set:sync': 1, 'set:watch': 1, 'set:adv': 1, 'today:why': 1, 'tr:week': 1, 'tr:lib': 1
+  'set:periods': 1, 'set:plan': 1, 'set:ai': 1, 'set:sync': 1, 'set:watch': 1, 'set:adv': 1, 'today:why': 1
 };
 const isFolded = k => { const f = (LOCAL.folds || {})[k]; return f === undefined ? !!FOLD_DEFAULT[k] : !!f; };
 const foldAttrs = key => `role="button" tabindex="0" aria-expanded="${!isFolded(key)}" onclick="toggleFold(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFold(this)}"`;
