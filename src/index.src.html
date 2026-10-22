@@ -25,13 +25,13 @@
   </div>
 
   <div class="banner" id="local-banner" style="display:none">本机预览 · 不同步</div>
-  <div class="card" id="t-hero"><div class="fx" aria-hidden="true"><i></i><i></i><i></i></div><div id="t-hero-in"></div><div class="rx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-  <div class="card tight act" id="t-act"></div>
-  <div class="card tight mm" id="t-mm"></div>
-  <div class="card tight" id="t-body"></div>
+  <div class="card" id="t-hero" data-mod="today:hero"><div class="fx" aria-hidden="true"><i></i><i></i><i></i></div><div id="t-hero-in"></div><div class="rx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+  <div class="card tight act" id="t-act" data-mod="today:act"></div>
+  <div class="card tight mm" id="t-mm" data-mod="today:mm"></div>
+  <div class="card tight" id="t-body" data-mod="today:body"></div>
 
   <!-- 输入区：静态，不随刷新重建 -->
-  <div class="card composer">
+  <div class="card composer" data-mod="today:composer">
     <div class="seg" id="c-meal"></div>
     <textarea class="in" id="c-text" rows="1" style="margin-top:10px" placeholder="吃了什么"
       oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
@@ -50,9 +50,9 @@
     </div>
   </div>
 
-  <div id="t-ai"></div>
-  <div class="card" id="t-list"></div>
-  <div class="card tl" id="t-time"></div>
+  <div id="t-ai" data-mod="today:ai"></div>
+  <div class="card" id="t-list" data-mod="today:list"></div>
+  <div class="card tl" id="t-time" data-mod="today:time"></div>
 </section>
 
 <!-- ══════════ 本周 ══════════ -->

@@ -22,55 +22,36 @@ function skGear(cx, cy, r, n, h) {   // 齿轮外形
   }
   return d + 'Z';
 }
-function skBlade(x0, y0, x1, y1, w) {   // 剑身：从护手到剑尖
-  const L = Math.hypot(x1 - x0, y1 - y0), ux = (x1 - x0) / L, uy = (y1 - y0) / L, px = -uy * w, py = ux * w;
-  const bx = x1 - ux * w * 2.4, by = y1 - uy * w * 2.4;
-  return `M${r1(x0 + px)} ${r1(y0 + py)}L${r1(bx + px)} ${r1(by + py)}L${r1(x1)} ${r1(y1)}L${r1(bx - px)} ${r1(by - py)}L${r1(x0 - px)} ${r1(y0 - py)}Z`;
-}
-function skVine(pts, amp, waves, seed) {   // 沿着一条折线绕的藤蔓 + 几片叶子
-  const seg = [];
-  let L = 0;
-  for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(l); L += l; }
-  const at = s => {
-    let d = s * L, i = 0;
-    while (i < seg.length - 1 && d > seg[i]) { d -= seg[i]; i++; }
-    const a = pts[i], b = pts[i + 1], t = d / seg[i], dx = (b[0] - a[0]) / seg[i], dy = (b[1] - a[1]) / seg[i];
-    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, -dy, dx];
-  };
-  let d = '', leaves = '';
-  const N = 60;
-  for (let k = 0; k <= N; k++) {
-    const s = k / N, [x, y, nx, ny] = at(s), o = Math.sin(s * Math.PI * 2 * waves + seed) * amp;
-    d += (k ? 'L' : 'M') + r1(x + nx * o) + ' ' + r1(y + ny * o);
-    if (k % 12 === 6) {
-      const ang = Math.atan2(ny, nx) * 180 / Math.PI + (o > 0 ? 0 : 180) + (k % 24 ? 25 : -25);
-      leaves += `<path transform="translate(${r1(x + nx * o)} ${r1(y + ny * o)}) rotate(${r1(ang)})" d="M0 0C2.5-3 6-3.5 9 0C6 3.5 2.5 3 0 0Z" fill="#5b8c4e"/>`;
-    }
-  }
-  return `<path d="${d}" fill="none" stroke="#3d6b37" stroke-width="1.5" stroke-linecap="round"/>` + leaves;
-}
 // 常用部件（右半边）
 const SK_HELMET = 'M-21.4 30C-22.4 10 -12.4 -3 0 -3C12.4 -3 22.4 10 21.4 30C21 40 18.4 48 14.6 54.4H-14.6C-18.4 48 -21 40 -21.4 30Z';
 const SK_SHOE = (fill, stripe) => MIR(`<path d="M7.6 384C7.6 381 9.2 379.6 11.6 379.6H19.4C21 379.6 22 381 22.2 383.6L23.6 395C23.8 398.4 22.2 400.6 19.4 400.6H9.6C7.6 400.6 6.6 399.2 6.6 396.8Z" fill="${fill}"/>${stripe ? `<path d="M6.7 396.4H23.7" stroke="${stripe}" stroke-width="2.4"/>` : ''}`);
-const SK_BOOT = (fill, stroke) => MIR(`<path d="M8.2 364H23.4C23 372 22.4 378 22.6 384L23.8 395C24 398.4 22.4 400.6 19.4 400.6H9.6C7.6 400.6 6.6 399.2 6.6 396.8L7.6 384C7.8 377 7.6 370 8.2 364Z" fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width=".9"` : ''}/>`);
-const SK_WRIST = fill => MIR(`<path d="M54.6 192.4L66.4 191.2L67 200.6L55.8 202Z" fill="${fill}"/>`);
-const SK_BELT = fill => MIR(`<path d="M0 180.4H33.5L34.8 188.6H0Z" fill="${fill}"/>`);
+// 靴子从小腿肌肉下面开始（不盖住肌肉）
+const SK_BOOT = (fill, stroke) => MIR(`<path d="M8.4 377H22.2L22.6 384L23.8 395C24 398.4 22.4 400.6 19.4 400.6H9.6C7.6 400.6 6.6 399.2 6.6 396.8L7.6 384C7.8 381.4 8.1 379 8.4 377Z" fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width=".9"` : ''}/>`);
+// 护腕戴在手腕上（前臂肌肉下面）
+const SK_WRIST = fill => MIR(`<path d="M56 201.8L66.9 200.6L67.6 208.4L56.1 209.6Z" fill="${fill}"/>`);
+function skCleaver(x0, y0, x1, y1, w) {   // 大剑：又宽又直的刀身，剑尖斜切
+  const L = Math.hypot(x1 - x0, y1 - y0), ux = (x1 - x0) / L, uy = (y1 - y0) / L, px = -uy * w, py = ux * w;
+  const P = (x, y) => `${r1(x)} ${r1(y)}`;
+  return `M${P(x0 + px, y0 + py)}L${P(x1 + px, y1 + py)}L${P(x1 - px - ux * w * 1.4, y1 - py - uy * w * 1.4)}L${P(x0 - px, y0 - py)}Z`;
+}
+const SK_FIRE = (x, y) => `<path d="M${x - 12} ${y + 8}L${x + 12} ${y - 2}M${x - 12} ${y - 2}L${x + 12} ${y + 8}" stroke="#6b4a2b" stroke-width="3" stroke-linecap="round"/>`
+  + `<path class="sk-flame" d="M${x} ${y - 28}C${x + 6} ${y - 18} ${x + 10} ${y - 10} ${x + 6} ${y}C${x + 4} ${y + 4} ${x - 4} ${y + 4} ${x - 6} ${y}C${x - 10} ${y - 8} ${x - 4} ${y - 16} ${x} ${y - 28}Z" fill="#ff8f45"/>`
+  + `<path d="M${x} ${y - 16}C${x + 3} ${y - 10} ${x + 4} ${y - 4} ${x + 1} ${y + 1}C${x - 1} ${y + 2} ${x - 3} ${y + 1} ${x - 3} ${y - 2}C${x - 4} ${y - 7} ${x - 2} ${y - 11} ${x} ${y - 16}Z" fill="#f5c85a"/>`;
 
 const MM_SKIN = {
   ios: {},
 
-  // 竞技：运动员（发带、护腕、短裤腰带和侧条、跑鞋）
+  // 竞技：运动员（发带、护腕、跑鞋）
   sport: {
     over: () => `<path d="M-16.8 10.6C-6 8 6 8 16.8 10.6L18.4 17C6 14.6 -6 14.6 -18.4 17Z" fill="var(--accent)"/>`
-      + SK_WRIST('var(--accent)') + SK_BELT('var(--accent)') + MIR(`<path d="M39.4 204L37.6 252" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/>`)
-      + SK_SHOE('#edf1f8', 'var(--accent)')
+      + SK_WRIST('var(--accent)') + SK_SHOE('#edf1f8', 'var(--accent)')
   },
 
   // 手帐：贴纸小人（白边贴纸 + 铅笔描边 + 两段纸胶带）
   planner: {
     back: () => `<path d="${MM_OUTLINE}" fill="#fff" stroke="#fff" stroke-width="12" stroke-linejoin="round" filter="url(#mmf-shadow)"/>`,
     over: s => `<path d="${MM_OUTLINE}" fill="none" stroke="#22304a" stroke-width="1.6" stroke-linejoin="round" opacity=".8" filter="url(#mmf-wob)"/>`
-      + `<g transform="scale(${s === 'f' ? 1 : -1} 1)"><rect x="-44" y="-4" width="38" height="11" transform="rotate(-32 -25 1.5)" fill="#ffe45c" opacity=".8"/><rect x="4" y="376" width="38" height="11" transform="rotate(-16 23 381.5)" fill="#9fd3f5" opacity=".8"/></g>`
+      + `<g transform="scale(${s === 'f' ? 1 : -1} 1)"><rect x="-44" y="-4" width="38" height="11" transform="rotate(-32 -25 1.5)" fill="#ffe45c" opacity=".8"/><rect x="4" y="383" width="38" height="11" transform="rotate(-16 23 388.5)" fill="#9fd3f5" opacity=".8"/></g>`
   },
 
   // 终端：显示器脑袋（屏幕上一个提示符和闪烁的光标）+ 扫描线 + 虚线轮廓
@@ -88,7 +69,7 @@ const MM_SKIN = {
     over: s => `<g transform="translate(${SIDE(s, 11)} 1) rotate(${SIDE(s, 20)})"><path d="M0 0L-10.5 -7.5C-12.6 -2.5 -12.6 2.5 -10.5 7.5ZM0 0L10.5 -7.5C12.6 -2.5 12.6 2.5 10.5 7.5Z" fill="#ff5c8a" stroke="#1f1b3a" stroke-width="1.8" stroke-linejoin="round"/><circle r="3.3" fill="#ff8fb0" stroke="#1f1b3a" stroke-width="1.8"/></g>`
   },
 
-  // 墨：武者（发髻、红头巾、黑腰带，身后一笔圆相）
+  // 墨：武者（发髻、红头巾，身后一笔圆相）
   sumi: {
     pad: 6,
     back: () => `<path d="${skArc(0, 170, 96, -62, 252)}" fill="none" stroke="#1e1c19" stroke-width="10" stroke-linecap="round" opacity=".1" filter="url(#mmf-ink)"/>`,
@@ -98,18 +79,16 @@ const MM_SKIN = {
       + `<path d="M-5 -1C-7 -9 -3.6 -14.6 0 -14.6C3.6 -14.6 7 -9 5 -1Z" fill="#1e1c19"/>`
       + `<path d="M-18.2 9.6C-6 7 6 7 18.2 9.6L18.9 15.6C6 13 -6 13 -18.9 15.6Z" fill="#b7282e"/>`
       + (s === 'b' ? `<path d="M2 12C10 17 18 20 31 19C27 24 18 26 9 22.5L1 15.5ZM2 13C7 22 12 30 23 37C16 38 9 33 3.5 21Z" fill="#b7282e"/>` : '')
-      + MIR(`<path d="M0 179.4H33.4L34.9 190H0Z" fill="#1e1c19"/>`)
-      + (s === 'f' ? `<path d="M-3.4 190L-7.4 208L-3.4 209.4L0 193ZM3.4 190L8 206.6L4.2 208.4L0 193Z" fill="#1e1c19"/>` : '')
   },
 
-  // 霓虹：赛博义体人（头盔 + 发光面罩、关节发光环）
+  // 霓虹：赛博义体人（头盔 + 发光面罩、关节处的小光环）
   neon: {
     over: s => `<path d="${SK_HELMET}" fill="#232a36" stroke="#4a5568" stroke-width="1.4"/>`
       + (s === 'f' ? `<path d="M-17.6 17H17.6L15.6 27.4H-15.6Z" fill="#00e5ff" filter="url(#mmf-glow)"/>` : `<path d="M-13 22H13" stroke="#00e5ff" stroke-width="2" opacity=".7"/>`)
-      + MIR(`<g fill="none" stroke="#00e5ff" stroke-width="1.6"><circle cx="52.4" cy="152" r="4.2"/><circle cx="19.4" cy="296" r="4.6"/></g>`)
+      + MIR(`<g fill="none" stroke="#00e5ff" stroke-width="1.4"><circle cx="52.4" cy="152" r="2.6"/><circle cx="19.4" cy="296.4" r="3"/></g>`)
   },
 
-  // 蒸汽：机械师（高礼帽 + 护目镜、黄铜护腕、皮靴，头后一个齿轮）
+  // 蒸汽：机械师（高礼帽 + 护目镜、头后一个齿轮、黄铜护腕、皮靴）
   steam: {
     pad: 22,
     back: () => `<path d="${skGear(0, 42, 36, 12, 7)}" fill="#3a2a1a" stroke="#b8862f" stroke-width="1.6"/>`,
@@ -126,77 +105,83 @@ const MM_SKIN = {
       + `<path d="M${SIDE(s, 66)} -16V398" stroke="#8a6a3a" stroke-width="3.4" stroke-linecap="round"/><circle cx="${SIDE(s, 66)}" cy="-23" r="6.5" fill="#9fd0ff" filter="url(#mmf-glow)"/>`
   },
 
-  // 自然：森灵（叶冠，手臂和腿上各绕一条藤蔓）
+  // 自然：森灵（叶冠，肩后长出来的枝叶，脚下草丛）
   nature: {
     pad: 4,
-    over: s => [200, 222, 244, 266, 288, 310, 332].map((a, i) => {
-        const x = r1(Math.cos(a * Math.PI / 180) * 19), y = r1(22 + Math.sin(a * Math.PI / 180) * 19);
-        return `<path transform="translate(${x} ${y}) rotate(${a + (i % 2 ? 14 : -14)})" d="M0 0C2.8-4.2 7.4-4.6 11 0C7.4 4.6 2.8 4.2 0 0Z" fill="${i % 2 ? '#8db36f' : '#4d7a46'}"/>`;
-      }).join('')
-      + skVine(s === 'f' ? [[46, 76], [52, 150], [62, 203]] : [[-46, 76], [-52, 150], [-62, 203]], 6, 3, 0.4)
-      + skVine(s === 'f' ? [[-30, 214], [-20, 296], [-15, 376]] : [[30, 214], [20, 296], [15, 376]], 6.5, 3, 2)
+    back: () => MIR(`<path d="M30 72C40 60 52 50 66 44M48 54C50 46 54 40 60 36" fill="none" stroke="#7a5f3c" stroke-width="2" stroke-linecap="round"/>`
+        + [[66, 44, -20], [58, 50, 40], [60, 36, -60], [44, 58, 50]].map(([x, y, a], i) => `<path transform="translate(${x} ${y}) rotate(${a})" d="M0 0C3-4.4 8-5 12 0C8 5 3 4.4 0 0Z" fill="${i % 2 ? '#8db36f' : '#4d7a46'}"/>`).join('')
+        + `<path d="M24 402C25 395 28 392 31 389M32 402C32 396 35 393 39 391M14 402C14 397 16 394 19 392" fill="none" stroke="#5b8c4e" stroke-width="1.6" stroke-linecap="round"/>`),
+    over: () => [200, 222, 244, 266, 288, 310, 332].map((a, i) => {
+      const x = r1(Math.cos(a * Math.PI / 180) * 19), y = r1(22 + Math.sin(a * Math.PI / 180) * 19);
+      return `<path transform="translate(${x} ${y}) rotate(${a + (i % 2 ? 14 : -14)})" d="M0 0C2.8-4.2 7.4-4.6 11 0C7.4 4.6 2.8 4.2 0 0Z" fill="${i % 2 ? '#8db36f' : '#4d7a46'}"/>`;
+    }).join('')
   },
 
-  // 狩猎：猎人（兜帽、毛领、背后大剑、皮带和皮靴）
+  // ── 游戏风：按各自参照的游戏画人物（原创图形，不画任何游戏里的具体角色） ──
+  // 狩猎（参照怪物猎人）：带角的猎人头盔、背后一把骨质大剑、毛边靴
   hunt: {
-    pad: 8,
-    back: s => `<path d="${skBlade(SIDE(s, 40), 16, SIDE(s, -26), 196, 6.5)}" fill="#7a756c" stroke="#3b2b1e" stroke-width="1.2"/>`
-      + `<path d="M${SIDE(s, 27)} 9L${SIDE(s, 55)} 21" stroke="#3b2b1e" stroke-width="5" stroke-linecap="round"/><path d="M${SIDE(s, 40)} 14L${SIDE(s, 48)} -8" stroke="#5a3a22" stroke-width="5" stroke-linecap="round"/>`,
-    over: s => (s === 'f'
-      ? `<path d="M-23 32C-25 12 -15 -6 0 -7C15 -6 25 12 23 32C23 44 19.4 54 16 60.4C10 55.4 -10 55.4 -16 60.4C-19.4 54 -23 44 -23 32Z" fill="#6b4a2b"/><path d="M-13.4 22C-13.4 12 -7.4 7 0 7C7.4 7 13.4 12 13.4 22C13.4 33 8.4 42 0 43C-8.4 42 -13.4 33 -13.4 22Z" fill="#e3cfa3"/>`
-      : `<path d="M-23 32C-25 12 -15 -6 0 -7C15 -6 25 12 23 32C23 44 18 54 14 60L0 64L-14 60C-18 54 -23 44 -23 32Z" fill="#6b4a2b"/>`)
-      + `<path d="M-37 64.4C-26 56 26 56 37 64.4C33 70.4 28.6 67.4 24.6 72.4C20.6 67.4 14.6 70.4 10.6 67.4C6 71.4 -6 71.4 -10.6 67.4C-14.6 70.4 -20.6 67.4 -24.6 72.4C-28.6 67.4 -33 70.4 -37 64.4Z" fill="#eadcbc"/>`
-      + SK_BELT('#5a3a22') + SK_BOOT('#5a3a22')
+    pad: 30,
+    back: s => `<g transform="scale(${s === 'f' ? 1 : -1} 1)"><path d="${skCleaver(34, 2, -18, 204, 15)}" fill="#7a756c" stroke="#3b2b1e" stroke-width="1.4" stroke-linejoin="round"/>`
+      + `<path d="M31 14L-14 190" stroke="#c9c1b0" stroke-width="2.4"/>`
+      + `<path d="M14 -4L54 8" stroke="#5a3a22" stroke-width="7" stroke-linecap="round"/><path d="M35 1L43 -27" stroke="#3b2b1e" stroke-width="5.4" stroke-linecap="round"/><circle cx="44" cy="-30" r="4.4" fill="#c9a24a" stroke="#3b2b1e"/></g>`,
+    over: s => MIR(`<path d="M9 4C17 -2 25 -12 27 -28C31.6 -13 26 -1 16 7Z" fill="#eadcbc" stroke="#7a6243" stroke-width="1.2" stroke-linejoin="round"/>`)
+      + `<path d="${SK_HELMET}" fill="#5a3a22" stroke="#2e1d0e" stroke-width="1.2"/>`
+      + (s === 'f' ? `<path d="M-17 18.4H17L15.4 26.4H-15.4Z" fill="#2e1d0e"/>` : `<path d="M0 -3V54" stroke="#2e1d0e" stroke-width="1.2"/>`)
+      + SK_BOOT('#5a3a22') + MIR(`<path d="M7.8 378C11.8 373.6 21.6 373.6 23.4 378C23.4 382 20 383.6 15.8 383C11.6 383.6 7.8 382 7.8 378Z" fill="#eadcbc"/>`)
   },
 
-  // 学园：学生（短发、衬衫领 + 领带、袖章、白袜运动鞋，身后一块斜切的天空）
+  // 学园（参照蔚蓝档案）：头上的光环、手里一把枪、白色运动鞋，身后一块斜切的天空
   academy: {
-    pad: 4,
+    pad: 12,
     back: () => `<path d="M-52 22H94L56 386H-90Z" fill="#d6ecff" opacity=".75"/>`,
-    over: s => (s === 'f'
-      ? `<path d="M-20 24C-21 8 -11 -2 0 -2C11 -2 21 8 20 24C18.4 17 14.4 13 9.4 12L7.4 17L4.4 11.4C1.4 13 -3.6 14 -6.6 12L-8.6 16L-10.6 11.4C-14.6 13 -18 18 -20 24Z" fill="#2b3a57"/>`
-        + MIR(`<path d="M12.6 58.6L1.6 64.6L6.6 71.6Z" fill="#fff" stroke="#22324b" stroke-width="1"/>`)
-        + `<path d="M-3.6 63H3.6L4.6 68L2 70L4 94L0 99L-4 94L-2 70L-4.6 68Z" fill="#1a96f0"/>`
-      : `<path d="M-20 24C-21 8 -11 -2 0 -2C11 -2 21 8 20 24C19.6 32 17 39 12.6 44H-12.6C-17 39 -19.6 32 -20 24Z" fill="#2b3a57"/>`)
-      + `<path d="M1 -2C2 -9 7 -12 11 -10C7 -10 5 -7 3 -2Z" fill="#2b3a57"/>`
-      + `<path d="M42.6 113.4L54.6 112L55.6 120.4L43.4 121.6Z" fill="#1a96f0" transform="scale(${s === 'f' ? 1 : -1} 1)"/>`
-      + MIR(`<path d="M7.4 362H24L22.4 376H8.4Z" fill="#fff" stroke="#c9d9ea" stroke-width=".8"/>`) + SK_SHOE('#1a96f0', '#fff')
+    over: s => `<g filter="url(#mmf-glow)" transform="rotate(${SIDE(s, -8)} 0 -11)"><ellipse cx="0" cy="-11" rx="16" ry="4.6" fill="none" stroke="#1a96f0" stroke-width="2"/><ellipse cx="0" cy="-11" rx="10" ry="2.6" fill="none" stroke="#7cc6ff" stroke-width="1.2"/>`
+        + [[-16, -11], [16, -11], [0, -15.6]].map(([x, y]) => `<path d="M${x} ${y - 3}L${x + 2.2} ${y}L${x} ${y + 3}L${x - 2.2} ${y}Z" fill="#1a96f0"/>`).join('') + `</g>`
+      + `<g transform="scale(${s === 'f' ? 1 : -1} 1)"><path d="M58.6 214H67L67.4 276H59Z" fill="#2b3a57"/><path d="M55 236H58.8V256L55.6 257Z" fill="#2b3a57"/><path d="M61.8 276H64.6V334H61.8Z" fill="#2b3a57"/><path d="M60.8 330H65.6V334H60.8Z" fill="#2b3a57"/><path d="M60 244H66" stroke="#7cc6ff" stroke-width="1.4"/></g>`
+      + SK_SHOE('#fff', '#1a96f0')
   },
 
-  // 工业：外骨骼作业员（护目头盔、警示条腰带、外骨骼支架 + 黄色关节）
+  // 工业（参照明日方舟：终末地）：带黄边的机能兜帽、背包和天线、外骨骼支架 + 黄色关节、身边一架小无人机
   industry: {
-    over: s => `<path d="${SK_HELMET}" fill="#161616"/>`
-      + (s === 'f' ? `<path d="M-16 15.6H16V25C16 28 14 29.6 11 29.6H-11C-14 29.6 -16 28 -16 25Z" fill="#ffd400"/>` : `<path d="M-20.8 18H20.8V24.4H-20.8Z" fill="url(#mmp-haz)"/>`)
-      + `<path d="M-34.6 180.4H34.6L35.8 188.8H-35.8Z" fill="url(#mmp-haz)" stroke="#161616" stroke-width=".8"/>`
+    pad: 4,
+    back: s => `<rect x="-24" y="42" width="48" height="58" rx="4" fill="#3c3c3a"/><path d="M${SIDE(s, 16)} 44L${SIDE(s, 22)} 20" stroke="#161616" stroke-width="2"/><circle cx="${SIDE(s, 22.4)}" cy="18" r="2.6" fill="#ffd400"/>`
+      + `<g transform="translate(${SIDE(s, -48)} 16)"><path d="M-12 -3H-5M5 -3H12" stroke="#161616" stroke-width="1.8" stroke-linecap="round"/><path d="M0 -6L8 0L0 6L-8 0Z" fill="#161616"/><circle r="2.2" fill="#ffd400"/></g>`,
+    over: s => `<path d="M-22 36L-21 14L-13 -1L0 -5L13 -1L21 14L22 36L17.6 55H-17.6Z" fill="#232323"/>`
+      + (s === 'f'
+        ? `<path d="M-13 16L0 10L13 16L12 34L0 42L-12 34Z" fill="#0f0f0f" stroke="#ffd400" stroke-width="1.2" stroke-linejoin="round"/><path d="M-10 23H10" stroke="#ffd400" stroke-width="2"/>`
+        : `<path d="M-1.6 2H1.6V44H-1.6Z" fill="#ffd400"/><path d="M5 20H11M5 24H9M5 28H11" stroke="#f7f7f5" stroke-width="1"/>`)
       + MIR(`<path d="M61.4 80L64.4 150L72 200M46 212L36.4 294L26.6 378" fill="none" stroke="#161616" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><g fill="#ffd400" stroke="#161616" stroke-width="1.6"><circle cx="61.4" cy="80" r="4.4"/><circle cx="64.4" cy="150" r="4.4"/><circle cx="46" cy="212" r="4.4"/><circle cx="36.4" cy="294" r="4.4"/></g>`)
       + SK_SHOE('#161616', '#ffd400')
   },
 
-  // 远征：暗色骑士（桶盔 + 红羽、破斗篷、长剑）
+  // 远征（参照龙之信条 2）：T 字开口的中世纪头盔 + 红羽、破旧的红斗篷、单手剑
   expedition: {
     pad: 22,
     back: () => `<path d="M-42 68C-56 146 -66 262 -74 374L-60 364L-50 378L-36 366L-22 380L-7 368L7 380L22 368L36 380L50 366L60 378L74 372C66 262 56 146 42 68C28 62 -28 62 -42 68Z" fill="#4a1714"/>`,
     over: s => `<path d="M0 -5C2 -19 14 -31 30 -27C24 -25 20 -23 17 -18C24 -19 28 -15 30 -11C22 -13 14 -11 6 -3Z" fill="#b02a2a" transform="scale(${s === 'f' ? 1 : -1} 1)"/>`
-      + `<path d="M-20.4 38C-22 14 -15 -4 0 -5C15 -4 22 14 20.4 38L15.6 55H-15.6Z" fill="#5a554d"/>`
-      + (s === 'f' ? `<path d="M-15.4 20H15.4L14.4 24H-14.4Z" fill="#0d0c0a"/>` : '')
+      + `<path d="M-20 38C-21.6 14 -14 -4 0 -5C14 -4 21.6 14 20 38L17 55H-17Z" fill="#5a554d"/>`
+      + (s === 'f' ? `<path d="M-13 20H13V24.6H2.6V40H-2.6V24.6H-13Z" fill="#0d0c0a"/>` : `<path d="M0 -5V55" stroke="#2a2723" stroke-width="1"/>`)
       + `<g transform="scale(${s === 'f' ? 1 : -1} 1)"><path d="M58.8 236H65.2L64.8 368L62 378L59.2 368Z" fill="#9a958c"/><path d="M62 210V232" stroke="#3b2b1e" stroke-width="4"/><path d="M50 234.4H74" stroke="#8a8070" stroke-width="3.6" stroke-linecap="round"/></g>`
   },
 
-  // 星野：宇航员（玻璃头盔、维生背包、手套和靴子、绕身的轨道环）
+  // 星野（参照星际拓荒）：玻璃头盔、喷气背包、手套靴子，手里一根烤棉花糖的树枝，脚边一堆篝火
   starwild: {
-    back: () => `<rect x="-32" y="42" width="64" height="98" rx="9" fill="#c9d3ea"/><g transform="rotate(-10 0 206)"><path d="M-80 206A80 18 0 0 1 80 206" fill="none" stroke="#ff8f45" stroke-width="1.8" opacity=".75"/></g>`,
+    back: s => `<rect x="-30" y="44" width="60" height="94" rx="10" fill="#c9d3ea"/>` + MIR(`<path d="M34 116H43L41.6 134H35.4Z" fill="#8a96b8"/>`)
+      + `<g transform="scale(${s === 'f' ? 1 : -1} 1)">${SK_FIRE(94, 392)}</g>`,
     over: s => `<circle cx="0" cy="24" r="29.4" fill="#5fd3c4" fill-opacity=".14" stroke="#d9e1f2" stroke-width="2.4"/><path d="M-19 7A22 22 0 0 1 -5 -1" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".75"/><rect x="-21" y="50" width="42" height="9" rx="4.5" fill="#d9e1f2"/>`
-      + MIR(`<path d="M55.6 205.4C58 201.4 65.6 200.4 67.6 204.4L69.4 224C69.6 236 66 245.6 61.2 245.6C57.6 245.6 55.8 238 55.8 230Z" fill="#e6ebf5"/><path d="M54.6 196.4L66.6 195.2L67 202.2L55.4 203.4Z" fill="#ff8f45"/>`)
-      + SK_BOOT('#e6ebf5') + MIR(`<path d="M8 370H23" stroke="#ff8f45" stroke-width="2.4"/>`)
-      + `<g transform="rotate(-10 0 206)"><path d="M-80 206A80 18 0 0 0 80 206" fill="none" stroke="#ff8f45" stroke-width="1.8"/><circle cx="${SIDE(s, 56)}" cy="218.8" r="5" fill="#5fd3c4"/></g>`
+      + `<g transform="scale(${s === 'f' ? 1 : -1} 1)"><path d="M64 236L90 334" stroke="#8a6a3a" stroke-width="2" stroke-linecap="round"/><rect x="86" y="332" width="9" height="11" rx="3" transform="rotate(-15 90.5 337.5)" fill="#fff" stroke="#d9c7a8"/></g>`
+      + MIR(`<path d="M55.6 205.4C58 201.4 65.6 200.4 67.6 204.4L69.4 224C69.6 236 66 245.6 61.2 245.6C57.6 245.6 55.8 238 55.8 230Z" fill="#e6ebf5"/><path d="M56 201.8L66.9 200.6L67.4 206.4L56.1 207.6Z" fill="#ff8f45"/>`)
+      + SK_BOOT('#e6ebf5') + MIR(`<path d="M8.2 380H22.4" stroke="#ff8f45" stroke-width="2.4"/>`)
   },
 
-  // 苍穹：有翼的天空骑士（羽翼、金冠 + 宝石、金腰带）
+  // 苍穹（参照空之轨迹）：身边浮着一块镶七色结晶回路的导力器、天上一艘小飞艇、白色长靴
   skyward: {
-    back: () => MIR(`<path d="M20 86C38 60 60 38 88 22C86 33 82 41 76 47C82 49 84 55 80 61C74 61 70 63 66 67C72 71 72 77 66 81C60 81 56 83 52 87C56 93 54 99 48 101C42 99 38 101 34 105C36 113 32 119 26 121Z" fill="#fffaf0" stroke="#d29a2e" stroke-width="1.4" stroke-linejoin="round"/>`),
-    over: s => `<path d="M-17.4 9.6C-6 7 6 7 17.4 9.6L17.8 13.8C6 11.4 -6 11.4 -17.8 13.8Z" fill="#d29a2e"/>`
-      + (s === 'f' ? `<path d="M0 5.4L3.6 10.6L0 15.8L-3.6 10.6Z" fill="#2f62c9" stroke="#fffaf0" stroke-width=".7"/>` : '')
-      + SK_BELT('#d29a2e')
+    back: s => `<g transform="translate(${SIDE(s, 58)} 18) scale(${s === 'f' ? 1.25 : -1.25} 1.25)"><ellipse rx="14" ry="5.4" fill="#fffaf0" stroke="#c9a35a" stroke-width="1"/><path d="M11 -1L18 -5V4L11 1Z" fill="#c9a35a"/><path d="M-6 5H5L3 9H-4Z" fill="#405579"/></g>`,
+    over: s => `<g transform="translate(${SIDE(s, -50)} 22) scale(1.2)"><circle r="11.6" fill="#fffaf0" stroke="#d29a2e" stroke-width="2"/>`
+        + ['#d6574e', '#3f7fd0', '#3f9f6b', '#d29a2e', '#8a5fd0', '#3fb4c9'].map((c, i) => {
+          const a = (i * 60 - 90) * Math.PI / 180;
+          return `<circle cx="${r1(Math.cos(a) * 7)}" cy="${r1(Math.sin(a) * 7)}" r="2.2" fill="${c}"/>`;
+        }).join('') + `<path d="M0 -2.6L2.2 0L0 2.6L-2.2 0Z" fill="#2f62c9"/></g>`
+      + SK_BOOT('#fffaf0', '#d29a2e')
   }
 };
 const MM_DEFS = `<defs>

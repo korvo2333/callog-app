@@ -74,6 +74,7 @@ function renderWeek() {
       : `<div class="muted">${esc(e.msg)}</div>`}`);
 
   $('#w-content').innerHTML = html;
+  placeMods($('#w-content'), 'week');
   weekChart($('#ch-week'), w);
 }
 async function applyTDEE(v) {
@@ -173,7 +174,7 @@ function renderBody() {
   }
 
   const rateCls = rate === null || planRate === null ? '' : rate <= planRate * 0.7 && rate >= planRate * 1.4 ? 'good' : rate > planRate * 0.7 ? 'warn' : 'bad';
-  let html = `<div style="padding:12px 16px 0">${segHTML('b-range', ['4周', '12周', '计划期', '全部'],
+  let html = `<div data-mod="body:stats"><div style="padding:12px 16px 0">${segHTML('b-range', ['4周', '12周', '计划期', '全部'],
     { w4: '4周', w12: '12周', plan: '计划期', all: '全部' }[VIEW.bodyRange], 'pickBodyRange')}</div>
   <div class="card">
     <div class="stats">
@@ -187,7 +188,7 @@ function renderBody() {
         <div class="stat-d">${lean ? `起点 ${signed1(lean - lean0)}` : ''}</div></div>
     </div>
     ${proj ? `<div class="hint" style="font-size:13px;color:var(--text2)">${proj}</div>` : ''}
-  </div>`;
+  </div></div>`;
 
   html += fcard('body:w', '体重 kg', cur ? cur.toFixed(1) : '', `<div class="chart" id="ch-w"></div>`)
     + fcard('body:bf', '体脂率 %', bfRec ? bfRec.bodyfat.toFixed(1) : '', `<div class="chart" id="ch-bf"></div>`)
@@ -202,7 +203,10 @@ function renderBody() {
     </tbody></table>`
     : '<div class="empty">还没有记录</div>'}`);
 
+  const form = document.querySelector('[data-fold="body:form"]');   // 「记录」卡是固定的节点（输入框里的内容要留着），先拿出来再排回去
+  if (form) form.remove();
   $('#b-content').innerHTML = html;
+  placeMods($('#b-content'), 'body', [form]);
 
   const planW = { name: '计划', color: 'var(--plan)', kind: 'dash', points: planLine('Weight', from, to), valueAt: d => planAt(d, 'Weight') };
   lineChart($('#ch-w'), {

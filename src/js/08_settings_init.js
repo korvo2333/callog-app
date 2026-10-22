@@ -24,6 +24,7 @@ function renderSettings() {
     <div class="themes">${THEMES.filter(t => !t.group).map(t => themePreviewHTML(t, document.documentElement.dataset.theme === t.id)).join('')}</div>
     <label class="lbl" style="margin-top:16px">游戏风</label>
     <div class="themes">${THEMES.filter(t => t.group === 'game').map(t => themePreviewHTML(t, document.documentElement.dataset.theme === t.id)).join('')}</div>`)
+  + fcard('set:order', '板块排序', '', orderCardHTML())
   + (formula ? fcard('set:goals', '每日目标', `缺口 ${fmt(dv)} · 今天 ${fmt(dayInfo(today()).target)}`, `
     <label class="lbl" style="margin-top:0">每日缺口</label>
     <div class="seg" id="s-int">${DEFICITS.map(x => `<button type="button" class="${dv === x.v ? 'on' : ''}" onclick="setDeficit(${x.v})">${x.name} ${x.v}</button>`).join('')}</div>
@@ -97,6 +98,7 @@ function renderSettings() {
       ${connected() ? `<button class="btn" onclick="lockNow()">${IN_APP ? '换网址 / 密码' : '退出'}</button>` : ''}
       <button class="btn danger" onclick="clearLocal()">清除缓存</button>
     </div>`);
+  placeMods($('#s-content'), 'settings');
   loadPreviewFonts();
   if (connected() && Date.now() - USAGE.at > 60000) loadUsage();
 }

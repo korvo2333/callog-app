@@ -12,6 +12,7 @@ function gotoToday() { VIEW.date = today(); COMPOSE.meal = mealByTime(); renderT
 function gotoDay(d) { VIEW.date = d; go('today'); }
 
 function renderToday() {
+  placeMods($('#scr-today'), 'today');
   const d = VIEW.date, isToday = d === today();
   $('#t-date').textContent = isToday ? '今天' : dateLabel(d);
   $('#t-sub').textContent = isToday ? dateLabel(d) : '回到今天';

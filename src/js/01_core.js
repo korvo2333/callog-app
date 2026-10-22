@@ -130,7 +130,7 @@ function heroReact() {
 const FOLD_DEFAULT = {
   'week:daily': 1, 'week:w8': 1, 'week:tdee': 1,
   'body:bf': 1, 'body:lean': 1, 'body:muscle': 1, 'body:recs': 1,
-  'set:periods': 1, 'set:plan': 1, 'set:ai': 1, 'set:sync': 1, 'set:watch': 1, 'set:adv': 1, 'today:why': 1
+  'set:periods': 1, 'set:plan': 1, 'set:ai': 1, 'set:sync': 1, 'set:watch': 1, 'set:adv': 1, 'set:order': 1, 'today:why': 1
 };
 const isFolded = k => { const f = (LOCAL.folds || {})[k]; return f === undefined ? !!FOLD_DEFAULT[k] : !!f; };
 const foldAttrs = key => `role="button" tabindex="0" aria-expanded="${!isFolded(key)}" onclick="toggleFold(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleFold(this)}"`;
