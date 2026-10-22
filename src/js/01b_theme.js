@@ -10,6 +10,7 @@ const ICONS = {   // 线条图标（stroke 跟随文字颜色）
   settings: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/>',
   camera: '<path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10.5H4z"/><circle cx="12" cy="13.5" r="3.4"/>',
   image: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.7"/><path d="M4 17l5-4.5 3.5 3 3-2.5 4.5 4"/>',
+  train: '<path d="M7.5 12h9"/><rect x="4.2" y="7.2" width="3.3" height="9.6" rx="1.3"/><rect x="16.5" y="7.2" width="3.3" height="9.6" rx="1.3"/><path d="M2.5 9.8v4.4M21.5 9.8v4.4"/>',
   // 有氧种类：椭圆机（飞轮 + 踏板杆 + 扶手）/ 跑步（奔跑的小人）/ 其他（火苗）
   cd_ell: '<circle cx="7" cy="15" r="3.4"/><circle cx="7" cy="15" r=".6"/><path d="M3.5 20.5h17M17.2 20.5l1.6-14.3M18.8 6.2l-3.4-2.6M7 15l9.6-4.2M13.2 12.5h3.6"/>',
   cd_run: '<circle cx="15.2" cy="4.6" r="1.9"/><path d="M13.7 8.2L11 13.6M13.3 8.9l-3.6 1.3-2.4-1.7M13.3 8.9l2.9 2.5 2.7-.7M11 13.6l3.6 2-1.1 4.9M11 13.6l-2.3 3.4-3.7.4"/>',
@@ -17,6 +18,7 @@ const ICONS = {   // 线条图标（stroke 跟随文字颜色）
 };
 // 部分主题有自己的导航图标
 const MAGIC_ICONS = {
+  train: '<path d="M12 2.8l1.6 1.6v9.2h-3.2V4.4z"/><path d="M7 13.6h10M12 16.6v4.6M10 21.2h4"/><path d="M8.6 13.6l-1.6 2.2M15.4 13.6l1.6 2.2"/>',
   today: '<circle cx="12" cy="10" r="6.3"/><path d="M8.6 9.2a3.6 3.6 0 0 1 2.6-2.7"/><path d="M6.5 20.5h11l-2-4.2h-7z"/>',
   week: '<path d="M7 4.5h11a2 2 0 0 1 0 4h-1.5v9a2.5 2.5 0 0 1-2.5 2.5H5.5a2 2 0 0 1 0-4H7z"/><path d="M7 16.5V4.5a2 2 0 0 0-2 2v0M10 9.5h4M10 13h4"/>',
   body: '<path d="M12 3.2l7.3 2.6v5.6c0 4.6-3.1 7.7-7.3 9.4-4.2-1.7-7.3-4.8-7.3-9.4V5.8z"/><path d="M12 7.5v9M8.5 11h7"/>',
@@ -27,6 +29,7 @@ const MAGIC_ICONS = {
   cd_other: '<path d="M12 3l1.9 6.1L20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9z"/><path d="M18.6 16.6l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5z"/><path d="M5.4 3.6l.4 1 1 .4-1 .4-.4 1-.4-1-1-.4 1-.4z"/>'
 };
 const NATURE_ICONS = {
+  train: '<path d="M8.6 10.2V8.4a3.4 3.4 0 0 1 6.8 0v1.8"/><circle cx="12" cy="15" r="5.8"/><path d="M12.4 4.9c1.4-2 3.6-2.5 5.3-1.6-1 1.9-3.3 2.6-5.3 1.6z"/>',
   today: '<circle cx="12" cy="12" r="4.3"/><path d="M12 2.8v2.3M12 18.9v2.3M2.8 12h2.3M18.9 12h2.3M5.5 5.5l1.6 1.6M16.9 16.9l1.6 1.6M5.5 18.5l1.6-1.6M16.9 7.1l1.6-1.6"/>',
   body: '<path d="M12 21v-8.5"/><path d="M12 13c0-4.2-3-6.8-7.6-6.8 0 4.2 3 6.8 7.6 6.8z"/><path d="M12 11.3c0-3.7 2.7-6.1 6.9-6.1 0 3.7-2.8 6.1-6.9 6.1z"/><path d="M7.5 21h9"/>',
   foods: '<path d="M12 7.6c-1.8-1.3-4.6-1.4-6.3.4-2.2 2.3-1.6 6.6.4 9.6 1.4 2.1 3 3.3 4.4 2.7.6-.3 1-.4 1.5-.4s.9.1 1.5.4c1.4.6 3-.6 4.4-2.7 2-3 2.6-7.3.4-9.6-1.7-1.8-4.5-1.7-6.3-.4z"/><path d="M12 7.6c0-2 .8-3.7 2.7-4.6"/>',
@@ -35,7 +38,7 @@ const NATURE_ICONS = {
   cd_other: '<path d="M12 16.4c-2.3 0-3.8-1.5-3.8-3.6 0-2.1 1.6-3.2 2.1-5.2 1.5.9 2 2.3 1.8 3.4.6-.4 1-1 1.2-1.8 1 .9 2.5 2.3 2.5 3.8 0 2-1.6 3.4-3.8 3.4z"/><path d="M5 20.5l14-3.2M19 20.5L5 17.3"/>'
 };
 const icon = (name, w, set) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${(set && set[name]) || ICONS[name]}</svg>`;
-const NAV_KEYS = ['today', 'week', 'body', 'foods', 'settings'];
+const NAV_KEYS = ['today', 'train', 'week', 'body', 'foods', 'settings'];
 // 有氧种类的图标：跟当前主题走（线宽、魔法 / 自然自己的画法；墨主题用汉字）
 const CARDIO_KANJI = { ell: '踏', run: '走', other: '動' };
 function cardioIcon(k) {
@@ -85,7 +88,7 @@ const THEMES = [
     fonts: 'family=Noto+Serif+SC:wght@400;600;700', pvFont: 'family=Noto+Serif+SC:wght@600',
     pv: { bg: '#ebe5d9', fg: '#1e1c19', acc: '#b7282e', font: '"Noto Serif SC", serif', weight: 600, box: 'border-radius:0;' },
     mark: '<svg width="24" height="24" viewBox="0 0 26 26"><rect x="1" y="1" width="24" height="24" rx="2" fill="var(--accent)"/><rect x="3.2" y="3.2" width="19.6" height="19.6" fill="none" stroke="#f4efe5" stroke-width="1"/><text x="13" y="18.6" text-anchor="middle" font-size="15" font-weight="700" fill="#f4efe5" style="font-family:\'Noto Serif SC\',serif">食</text></svg>',
-    word: 'CalLog', kanji: ['日', '周', '身', '食', '设']
+    word: 'CalLog', kanji: ['日', '练', '周', '身', '食', '设']
   },
   {
     id: 'neon', name: '霓虹', desc: '赛博朋克 HUD', ring: 'hud', nav: 'line',

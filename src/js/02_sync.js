@@ -1,8 +1,12 @@
 // ════════════════════════════════════════════
 // 数据写入：先改本机，再进同步队列
 // ════════════════════════════════════════════
-const T2S = { log: 'Log', foods: 'Foods', cats: 'Categories', body: 'Body' };
-const S2T = { Log: 'log', Foods: 'foods', Categories: 'cats', Body: 'body' };
+const T2S = { log: 'Log', foods: 'Foods', cats: 'Categories', body: 'Body', exercises: 'Exercises', plan: 'Plan', sets: 'Sets' };
+const S2T = { Log: 'log', Foods: 'foods', Categories: 'cats', Body: 'body', Exercises: 'exercises', Plan: 'plan', Sets: 'sets' };
+// 训练的三张表：旧版 Code.gs 没有，后台没更新前先存在本机，更新后自动补传
+const TRAIN_TABLES = ['Exercises', 'Plan', 'Sets'];
+const serverHas = t => !TRAIN_TABLES.includes(t) || !connected() || !!(LOCAL.server && (LOCAL.server.tables || []).includes(t));
+const trainWaiting = () => OUTBOX.some(o => !serverHas(o.table));
 
 function upsertRow(t, row) {
   const list = DB[t];
@@ -141,18 +145,19 @@ function queue(op) {
 }
 
 async function flush() {
-  if (!connected() || flushing || !OUTBOX.length) { setSync(syncState === 'err' ? 'err' : 'idle'); return; }
+  const sendable = OUTBOX.filter(o => serverHas(o.table));
+  if (!connected() || flushing || !sendable.length) { setSync(syncState === 'err' ? 'err' : 'idle'); return; }
   flushing = true;
-  const ops = OUTBOX.slice(0, 150);
+  const ops = sendable.slice(0, 150);
   setSync('ing');
   try {
     await api('batch', { ops }, 45000);
-    OUTBOX.splice(0, ops.length);
+    OUTBOX = OUTBOX.filter(o => !ops.includes(o));
     saveOutbox();
     LOCAL.lastSync = new Date().toISOString();
     saveLocal();
     setSync('ok');
-    if (OUTBOX.length) setTimeout(flush, 100);
+    if (OUTBOX.some(o => serverHas(o.table))) setTimeout(flush, 100);
   } catch (e) {
     setSync('err', e.message);
     clearTimeout(retryTimer);
@@ -185,6 +190,18 @@ function fromServer(data) {
       muscle: numOrNull(r.muscle), note: s(r.note), updatedAt: s(r.updatedAt)
     })),
     steps: stepsFromServer(data.Steps),
+    // 训练三张表：后台是旧版（没有这三页）时为 undefined，本机的数据保持不动
+    exercises: data.Exercises && data.Exercises.filter(r => r.name).map(r => ({
+      id: s(r.id), name: s(r.name).trim(), equip: s(r.equip), mode: s(r.mode), group: s(r.group), main: s(r.main), sub: s(r.sub),
+      anim: s(r.anim), sort: n(r.sort), updatedAt: s(r.updatedAt)
+    })),
+    plan: data.Plan && data.Plan.filter(r => r.day && r.item).map(r => ({
+      id: s(r.id), day: s(r.day).trim(), ord: n(r.ord), item: s(r.item).trim(), equip: s(r.equip).trim(), ss: s(r.ss).trim(), updatedAt: s(r.updatedAt)
+    })),
+    sets: data.Sets && data.Sets.filter(r => r.date && r.ex).map(r => ({
+      id: s(r.id), date: s(r.date).slice(0, 10), plan: s(r.plan), ex: s(r.ex), equip: s(r.equip), set: n(r.set), kind: s(r.kind) || '正式',
+      kg: n(r.kg), reps: n(r.reps), vol: n(r.vol), wid: s(r.wid), updatedAt: s(r.updatedAt)
+    })),
     settings
   };
 }
@@ -200,6 +217,7 @@ async function pull() {
   const j = await api('bootstrap', {}, 45000);
   const fresh = fromServer(j.data || {});
   DB.log = fresh.log; DB.foods = fresh.foods; DB.cats = fresh.cats; DB.body = fresh.body; DB.steps = fresh.steps; DB.settings = fresh.settings;
+  ['exercises', 'plan', 'sets'].forEach(t => { if (fresh[t]) DB[t] = fresh[t]; });
   OUTBOX.forEach(applyOpLocal);
   saveDB();
   LOCAL.lastPull = Date.now();
@@ -222,6 +240,7 @@ async function syncNow(manual) {
     if (OUTBOX.length && syncState === 'err') throw new Error(syncMsg || '上传失败');
     await pull();
     ensureFormula();
+    ensureTrainSeed();
     setSync('ok');
     rerender();
     pollSteps(true);
@@ -363,11 +382,12 @@ function dayInfo(date) {
     return Object.assign(common, { mode: 'plan', burn, base, target: base + burn, carbT: carbFor(base) + Math.round(burn / 4), tdee: num(s.tdee) + burn });
   }
   const st = stepsFor(date);
-  const strength = entries.some(e => e.type === 'strength');
+  const sEntry = entries.find(e => e.type === 'strength'), strength = !!sEntry;
   const future = date > today();
   const rest = Math.round(num(s.bmr) * pf(s.restFactor));
   const stepsK = Math.round(st.n * pf(s.stepKcal) / 1000);
-  const strengthK = strength ? num(s.strengthKcal) : future ? Math.round(strengthRate() * num(s.strengthKcal)) : 0;
+  // 力量：练完点「完成」的那天按训练时长算好存在这条记录里；只是手动打开的按设置里的固定值
+  const strengthK = strength ? (num(sEntry.kcal) > 0 ? num(sEntry.kcal) : num(s.strengthKcal)) : future ? Math.round(strengthRate() * num(s.strengthKcal)) : 0;
   const cardioK = sum(burns, e => cardioCounted(e, s));
   const E = rest + stepsK + strengthK + cardioK;
   const raw = E - deficitOf(s);

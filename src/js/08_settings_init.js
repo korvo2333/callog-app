@@ -4,7 +4,8 @@
 function syncInfoHTML() {
   if (!connected()) return '';
   const last = LOCAL.lastSync ? new Date(LOCAL.lastSync).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-  return `上次同步 ${last}${OUTBOX.length ? ` · 待上传 ${OUTBOX.length}` : ''}${syncState === 'err' ? ` · <span style="color:var(--bad)">${esc(syncMsg)}</span>` : ''}`;
+  return `上次同步 ${last}${OUTBOX.length ? ` · 待上传 ${OUTBOX.length}` : ''}${syncState === 'err' ? ` · <span style="color:var(--bad)">${esc(syncMsg)}</span>` : ''}`
+    + (trainWaiting() ? `<div style="color:var(--warn);margin-top:4px">训练数据先存在手机里：后台更新 Code.gs（部署新版本）后会自动传到表格</div>` : '');
 }
 
 function renderSettings() {
@@ -220,7 +221,7 @@ async function clearLocal() {
 // ════════════════════════════════════════════
 // 导航 & 启动
 // ════════════════════════════════════════════
-const TAB_ORDER = ['today', 'week', 'body', 'foods', 'settings'];
+const TAB_ORDER = ['today', 'train', 'week', 'body', 'foods', 'settings'];
 let BOOTED = false;
 function go(tab) {
   const prev = VIEW.tab, prevEl = $('#scr-' + prev), y0 = window.scrollY;
@@ -238,7 +239,7 @@ function go(tab) {
   SCROLL.y = 0; scrollTick();
 }
 // 主题转场：旧页面留在下面（固定在原来的滚动位置），新页面按主题的方式盖上来；#tx 是转场装饰层
-const TX_CMD = { today: 'cd ~/today', week: 'cd ~/week', body: 'cd ~/body', foods: 'cd ~/foods', settings: 'cd ~/settings' };
+const TX_CMD = { today: 'cd ~/today', train: 'cd ~/train', week: 'cd ~/week', body: 'cd ~/body', foods: 'cd ~/foods', settings: 'cd ~/settings' };
 function playTx(prevEl, el, y0, tab, dir, cmd) {
   if (REDUCED()) return;
   document.querySelectorAll('.scr-clone').forEach(e => e.remove());
@@ -312,11 +313,13 @@ function staggerCards(el) {
 function rerender() {
   const t = VIEW.tab;
   if (t === 'today') renderToday();
+  else if (t === 'train') renderTrain();
   else if (t === 'week') renderWeek();
   else if (t === 'body') renderBody();
   else if (t === 'foods') renderFoods();
   else if (t === 'settings') renderSettings();
   setSync(syncState);
+  updateTrainBar();
 }
 
 let lastSeenDay = today();
@@ -369,7 +372,7 @@ async function lockNow() {
   showLock(' ');
 }
 
-const serverInfo = r => ({ sheetUrl: r.sheetUrl, aiReady: !!r.aiReady, hookUrl: r.hookUrl || '', v2: 'hookUrl' in r, models: (r.models || []).map(m => Object.assign({}, AI_MODELS.find(x => x.id === m.id) || {}, m)) });
+const serverInfo = r => ({ sheetUrl: r.sheetUrl, aiReady: !!r.aiReady, hookUrl: r.hookUrl || '', v2: 'hookUrl' in r, tables: r.tables || [], models: (r.models || []).map(m => Object.assign({}, AI_MODELS.find(x => x.id === m.id) || {}, m)) });
 async function connectServer() {
   const r = await api('ping', { tz: TZ }, 60000);
   LOCAL.server = serverInfo(r);
@@ -409,7 +412,15 @@ function appStatusBar() {
 const SWIPE = { on: false, h: false, x0: 0, y0: 0, t0: 0, dx: 0, dy: 0 };
 const SWIPE_EDGE = 22;
 const swipeNeed = () => Math.max(64, innerWidth * .2);                    // 拉多远算数
-const swipeTo = dx => TAB_ORDER[TAB_ORDER.indexOf(VIEW.tab) + (dx < 0 ? 1 : -1)];
+// 滑到哪：平时是上一页 / 下一页；训练页正在训练时是上一个 / 下一个动作
+function swipeTarget(dx) {
+  if (VIEW.tab === 'train' && LOCAL.workout) {
+    const W = LOCAL.workout, j = W.cur + (dx < 0 ? 1 : -1), it = W.items[j];
+    return it ? { label: exLabel(it.ex, it.equip), go: () => trGoto(j) } : null;
+  }
+  const to = TAB_ORDER[TAB_ORDER.indexOf(VIEW.tab) + (dx < 0 ? 1 : -1)];
+  return to ? { label: ($('#nav-' + to + ' .lb') || {}).textContent || '', go: () => go(to) } : null;
+}
 function swipeBlocked(t) {
   if (['#sheet-bg', '#dlg-bg', '#lock'].some(s => { const e = $(s); return e && e.classList.contains('open'); })) return true;
   for (let e = t; e && e.nodeType === 1 && e !== document.body; e = e.parentElement) {
@@ -428,7 +439,7 @@ function swipeHint() {
   return h;
 }
 function swipeShow(y) {
-  const h = swipeHint(), to = swipeTo(SWIPE.dx);
+  const h = swipeHint(), to = swipeTarget(SWIPE.dx);
   let p = Math.min(1, Math.abs(SWIPE.dx) / swipeNeed());
   if (!to) p = Math.min(p, .5);                                            // 到头了：只探出一半
   h.classList.toggle('r', SWIPE.dx < 0);
@@ -436,7 +447,7 @@ function swipeShow(y) {
   h.classList.toggle('ready', !!to && p >= 1);
   h.style.setProperty('--p', p.toFixed(3));
   h.style.top = Math.max(80, Math.min(innerHeight - 120, y)) + 'px';
-  if (to) h.querySelector('b').textContent = ($('#nav-' + to + ' .lb') || {}).textContent || '';
+  if (to) h.querySelector('b').textContent = to.label;
   h.classList.add('show');
 }
 function swipeEnd(cancel, ts) {
@@ -445,9 +456,9 @@ function swipeEnd(cancel, ts) {
   const h = $('#swipe-hint');
   if (h) h.classList.remove('show', 'ready');
   if (cancel || !SWIPE.h) return;
-  const adx = Math.abs(SWIPE.dx), v = adx / Math.max(1, ts - SWIPE.t0), to = swipeTo(SWIPE.dx);
+  const adx = Math.abs(SWIPE.dx), v = adx / Math.max(1, ts - SWIPE.t0), to = swipeTarget(SWIPE.dx);
   const far = adx >= swipeNeed() || (adx > 40 && v > .35);                // 拉够距离，或者快速一甩
-  if (to && far && adx > Math.abs(SWIPE.dy) * 1.6) go(to);
+  if (to && far && adx > Math.abs(SWIPE.dy) * 1.6) to.go();
 }
 function initSwipe() {
   if (initSwipe.done) return;
@@ -482,8 +493,10 @@ function init() {
   DB.ai.forEach(a => { if (a.status === 'sending' || a.status === 'pending') { a.status = 'error'; a.error = '上次没有完成，请重新发送'; } });
   DB.ai = DB.ai.filter(a => !['added', 'dismissed'].includes(a.status) || Date.now() - a.createdAt < 86400000);
   saveDB();
-  if (!connected()) ensureFormula();
+  if (!connected()) { ensureFormula(); ensureTrainSeed(); }
   go('today');
+  if (LOCAL.workout) startTrainTick();   // 上次没练完：接着计时，其他页面显示「训练中」小条
+  updateTrainBar();
   if (connected()) {
     connectServer().catch(e => { if (!e.auth) setSync('err', e.message); });   // 密码不对时 api() 会弹出锁屏
   } else if (IN_APP) showLock(' ');   // App 第一次打开：填网址和密码

@@ -54,6 +54,11 @@
 </section>
 
 <!-- ══════════ 本周 ══════════ -->
+<section id="scr-train" class="scr">
+  <div class="hd"><span class="brand"></span><h1>训练</h1><span id="tr-hd-act"></span></div>
+  <div id="tr-content"></div>
+</section>
+
 <section id="scr-week" class="scr">
   <div class="hd">
     <span class="brand"></span>
@@ -113,8 +118,11 @@
 <div id="tx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i>
   <svg class="tx-svg" viewBox="0 0 390 844" preserveAspectRatio="none"><path class="p1" pathLength="100"/><path class="p2" pathLength="100"/><path class="p3" pathLength="100"/></svg></div>
 
+<!-- 训练进行中、人在别的页面时：底部的「训练中」小条，点一下回到训练 -->
+<button id="train-bar" class="train-bar" onclick="go('train')" aria-label="回到训练"></button>
 <nav class="nav">
   <button id="nav-today" onclick="go('today')"><span class="ic"></span><span class="lb">今日</span></button>
+  <button id="nav-train" onclick="go('train')"><span class="ic"></span><span class="lb">训练</span></button>
   <button id="nav-week" onclick="go('week')"><span class="ic"></span><span class="lb">本周</span></button>
   <button id="nav-body" onclick="go('body')"><span class="ic"></span><span class="lb">身体</span></button>
   <button id="nav-foods" onclick="go('foods')"><span class="ic"></span><span class="lb">食物库</span></button>

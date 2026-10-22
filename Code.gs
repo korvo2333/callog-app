@@ -9,6 +9,8 @@
  *
  * 安卓 App（可选）：装好 APK 后，第一次打开时填这个网页应用的网址（…/exec）和密码，读写走下面的 doPost。
  *
+ * 训练：表格里的「动作库」「计划」「训练记录」三页由 App 自动建好并填入预置的动作和周计划，可以直接在表格里改（改完在 App 里同步一下）。
+ *
  * 手表步数（可选）：手机装 HC Webhook，网址填「App 设置 → 手表步数」里显示的那一串（就是本网页应用的网址 + ?token=你的密码），
  *      步数分辨率选「每日」(Daily)。更新这个文件后要「管理部署 → 编辑 → 版本：新版本 → 部署」才会生效。
  */
@@ -38,12 +40,29 @@ const TABLES = {
   AI_Requests: ['id', 'createdAt', 'status', 'model', 'text', 'hasImage', 'result', 'inputTokens', 'outputTokens', 'costUSD', 'error'],
   // 手表步数：每天一行。watch* 是 HC Webhook 推过来的，manual 是你在 App 里手动改的（有手动值时以手动为准）
   Steps:       ['date', 'watch', 'watchFull', 'watchEnd', 'manual', 'updatedAt'],
-  HC_Log:      ['at', 'size', 'summary', 'raw']
+  HC_Log:      ['at', 'size', 'summary', 'raw'],
+  // 训练：动作库 / 每周计划 / 每组的记录（这三页的表名和表头用中文，可以直接在表格里看和改）
+  Exercises:   ['id', 'name', 'equip', 'mode', 'group', 'main', 'sub', 'anim', 'sort', 'updatedAt'],
+  Plan:        ['id', 'day', 'ord', 'item', 'equip', 'ss', 'updatedAt'],
+  Sets:        ['id', 'date', 'plan', 'ex', 'equip', 'set', 'kind', 'kg', 'reps', 'vol', 'wid', 'updatedAt']
 };
+const SHEET_NAMES = { Exercises: '动作库', Plan: '计划', Sets: '训练记录' };
+const HEAD_NAMES = {
+  Exercises: { name: '动作', equip: '器材', mode: '记录方式', group: '大部位', main: '主练', sub: '顺带', anim: '动画', sort: '排序', updatedAt: '更新时间' },
+  Plan:      { day: '星期', ord: '顺序', item: '动作/部位', equip: '器材', ss: '超级组', updatedAt: '更新时间' },
+  Sets:      { date: '日期', plan: '计划', ex: '动作', equip: '器材', set: '组', kind: '类型', kg: 'kg', reps: '次', vol: '容量', wid: '训练', updatedAt: '更新时间' }
+};
+const headOf_ = (t, k) => (HEAD_NAMES[t] && HEAD_NAMES[t][k]) || k;                 // 程序里的列名 → 表格里的表头
+function keyOf_(t, h) {                                                              // 表格里的表头 → 程序里的列名
+  const m = HEAD_NAMES[t];
+  if (m) for (const k in m) if (m[k] === h) return k;
+  return h;
+}
 const KEY_COL = { Settings: 'key', Steps: 'date' };   // 其余表用 id
-const WRITABLE = ['Log', 'Foods', 'Categories', 'Body', 'Settings', 'Steps'];
+const WRITABLE = ['Log', 'Foods', 'Categories', 'Body', 'Settings', 'Steps', 'Exercises', 'Plan', 'Sets'];
 const TEXT_COLS = ['id', 'date', 'time', 'meal', 'name', 'type', 'foodId', 'note', 'updatedAt', 'category', 'serving',
-                   'key', 'value', 'createdAt', 'status', 'model', 'text', 'result', 'error', 'watchFull', 'watchEnd', 'at', 'summary', 'raw'];
+                   'key', 'value', 'createdAt', 'status', 'model', 'text', 'result', 'error', 'watchFull', 'watchEnd', 'at', 'summary', 'raw',
+                   'equip', 'mode', 'group', 'main', 'sub', 'anim', 'day', 'item', 'ss', 'plan', 'ex', 'kind', 'wid'];
 
 const AI_SYSTEM = [
   '你是专业营养师，根据用户的食物照片和/或文字描述，估算这一餐的热量和三大营养素。',
@@ -206,14 +225,16 @@ function ss_() { return SpreadsheetApp.getActiveSpreadsheet(); }
 function sheet_(name) {
   if (sheetCache_[name]) return sheetCache_[name];
   const ss = ss_();
-  let sh = ss.getSheetByName(name);
-  const headers = TABLES[name];
+  const tab = SHEET_NAMES[name] || name;
+  let sh = ss.getSheetByName(tab);
+  const keys = TABLES[name];
+  const headers = keys.map(k => headOf_(name, k));
   if (!sh) {
-    sh = ss.insertSheet(name);
+    sh = ss.insertSheet(tab);
     sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
     sh.setFrozenRows(1);
-    headers.forEach((h, i) => {
-      if (TEXT_COLS.indexOf(h) >= 0) sh.getRange(1, i + 1, sh.getMaxRows(), 1).setNumberFormat('@');
+    keys.forEach((k, i) => {
+      if (TEXT_COLS.indexOf(k) >= 0) sh.getRange(1, i + 1, sh.getMaxRows(), 1).setNumberFormat('@');
     });
   } else {
     // 补上缺失的列（旧版本表格或用户手动改过表头时）
@@ -248,7 +269,7 @@ function readTable_(name) {
   const sh = sheet_(name);
   const last = sh.getLastRow();
   if (last <= 1) return [];
-  const heads = headers_(sh);
+  const heads = headers_(sh).map(h => keyOf_(name, h));
   const values = sh.getRange(2, 1, last - 1, heads.length).getValues();
   const keyCol = KEY_COL[name] || 'id';
   const ki = heads.indexOf(keyCol);
@@ -277,6 +298,7 @@ function ping_() {
     models: Object.keys(MODELS).map(id => ({ id: id, name: MODELS[id].name, input: MODELS[id].input, output: MODELS[id].output })),
     defaultModel: DEFAULT_MODEL,
     hookUrl: hookUrl_(),
+    tables: WRITABLE,   // App 据此判断后台能不能存训练数据（旧版 Code.gs 没有这三页）
     serverTime: new Date().toISOString()
   };
 }
@@ -304,7 +326,7 @@ function batch_(ops) {
 
   Object.keys(byTable).forEach(table => {
     const sh = sheet_(table);
-    const heads = headers_(sh);
+    const heads = headers_(sh).map(h => keyOf_(table, h));
     const keyCol = KEY_COL[table] || 'id';
     const ki = heads.indexOf(keyCol);
     const last = sh.getLastRow();
