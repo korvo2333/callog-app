@@ -303,8 +303,16 @@ function stepsFor(date) {
   if (date === t && watchLinked()) return Object.assign({ n: 0, src: 'wait', actual: 0 }, o);
   return Object.assign({ n: usual, src: date < t ? 'none' : 'usual', actual: null }, o);
 }
-// 有氧：手表数字 × 这条记录的比例（没填比例时用设置里的默认值）
-const cardioPct = (e, s) => { const r = num(e.ratio); return r > 0 ? r : Math.round(pf((s || cfg()).cardioFactor) * 100); };
+// 有氧：手表数字 × 计入比例。比例按种类：椭圆机 / 跑步（步数里已经算过一部分，所以更低）/ 其他
+const CARDIO_KINDS = [
+  { k: 'ell', name: '椭圆机', key: 'cardioEll', why: '手表的数字含基础代谢，而且偏高' },
+  { k: 'run', name: '跑步', key: 'cardioRun', why: '跑步的步数已经算进步数消耗了' },
+  { k: 'other', name: '其他', key: 'cardioFactor', why: '手表的数字含基础代谢，而且偏高' }
+];
+const cardioKind = e => /椭圆|elliptical|クロストレーナー/i.test(e && e.name || '') ? 'ell' : /跑|run|ラン/i.test(e && e.name || '') ? 'run' : 'other';
+const cardioKindPct = (k, s) => { const c = CARDIO_KINDS.find(x => x.k === k) || CARDIO_KINDS[2]; s = s || cfg(); return Math.round(pf(s[c.key] != null ? s[c.key] : s.cardioFactor) * 100); };
+// 每条记录存了自己的比例（以后改设置不影响旧记录）；没存的按种类的默认值
+const cardioPct = (e, s) => { const r = num(e.ratio); return r > 0 ? r : cardioKindPct(cardioKind(e), s); };
 function cardioCounted(e, s) { return Math.round(num(e.kcal) * cardioPct(e, s) / 100); }
 function strengthRate() {   // 以后几天的预估：最近 14 天练了几次力量；新公式刚开始时用设置里的每周次数
   const s = cfg(), t = today();

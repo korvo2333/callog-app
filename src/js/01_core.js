@@ -50,7 +50,7 @@ const DEFAULT_SETTINGS = {
   aiModel: 'claude-haiku-5-5',
   // 每日目标（从 formulaFrom 这天开始用；之前的日子仍按上面的 dayKcal / tdee，不会被重算）
   // 消耗 = 基础代谢 × 日常系数 + 步数 × 每千步 / 1000 + 力量（勾了才算）+ 有氧（手表数字 × 比例）；目标 = 消耗 − 每日缺口，最低 = 基础代谢
-  formulaFrom: '', bmr: 1650, restFactor: 1.15, stepKcal: 30, strengthKcal: 200, cardioFactor: 0.7, deficit: 700,
+  formulaFrom: '', bmr: 1650, restFactor: 1.15, stepKcal: 30, strengthKcal: 200, cardioFactor: 0.7, cardioEll: 0.7, cardioRun: 0.5, deficit: 700,   // 有氧计入比例：其他 / 椭圆机 / 跑步
   stepsDefault: 7000, strengthPerWeek: 4
 };
 

@@ -38,7 +38,7 @@ function renderSettings() {
         ${numRow('日常系数', 'restFactor', 0.01)}
         ${numRow('每千步 kcal', 'stepKcal')}
         ${numRow('力量 kcal', 'strengthKcal')}
-        <label class="srow"><span>有氧计入 %</span><input class="in sm" type="number" inputmode="numeric" value="${Math.round(pf(s.cardioFactor) * 100)}" onchange="setNum('cardioFactor', (parseFloat(this.value) || 70) / 100)"></label>
+        ${CARDIO_KINDS.map(c => `<label class="srow"><span class="cd-srow"><span class="act-ic sm" aria-hidden="true">${cardioIcon(c.k)}</span>${c.name}计入 %</span><input class="in sm" type="number" inputmode="numeric" value="${cardioKindPct(c.k, s)}" onchange="setNum('${c.key}', Math.min(100, Math.max(1, parseFloat(this.value) || ${c.k === 'run' ? 50 : 70})) / 100)"></label>`).join('')}
         ${numRow('默认步数', 'stepsDefault')}
         ${numRow('每周力量次数', 'strengthPerWeek')}
       </div></div>
