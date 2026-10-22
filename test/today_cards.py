@@ -91,27 +91,30 @@ with sync_playwright() as p:
     g = ev("tlGroups([{time:'12:00',kcal:300,protein:1,fat:1,carb:1,meal:'午餐'},{time:'12:15',kcal:200,protein:1,fat:1,carb:1,meal:'午餐'},{time:'12:40',kcal:100,protein:0,fat:0,carb:0,meal:'午餐'},{time:'',kcal:50,protein:0,fat:0,carb:0,meal:'晚餐'}]).map(x => [h2hm(x.h), x.kcal, x.est])")
     check(g == [['12:00', 500, False], ['12:40', 100, False], ['19:00', 50, True]], f'grouping within 20 min + meal fallback {g}')
 
-    # ── 训练部位：每个主题的人物 ──
+    # ── 训练部位：每个主题的人物（名称统一叫「训练部位」，人物不画五官） ──
     themes = ev("THEMES.map(t => t.id)")
     thu = ev("(() => { const t = parseYmd(today()); while (t.getDay() !== 4) t.setDate(t.getDate() + 1); return ymd(t); })()")
     sat = ev(f"addDays('{thu}', 2)")
-    seen = set()
     for th in themes:
         ev(f"LOCAL.theme = '{th}'; applyTheme(); VIEW.date = '{thu}'; renderToday()"); pg.wait_for_timeout(250)
-        sk = ev(f"(() => {{ const s = MM_SKIN['{th}'] || MM_SKIN.ios; const t = document.createElement('i'); t.innerHTML = s.title; return {{ title: t.textContent, leg: s.leg, pad: s.pad || 0, rest: s.rest }}; }})()")
+        pad = ev(f"(MM_SKIN['{th}'] || MM_SKIN.ios).pad || 0")
         title = ev("document.querySelector('#t-mm > .card-t').childNodes[0].textContent")
         leg = ev("[...document.querySelectorAll('#t-mm .mm-leg span')].map(e => e.textContent)")
         vb = ev("document.querySelector('#t-mm .mm-svg').getAttribute('viewBox')")
         costume = ev("document.querySelectorAll('#t-mm .sk-over, #t-mm .sk-back').length")
         labels = ev("document.querySelectorAll('#t-mm .mm-lb').length")
         main = ev("document.querySelectorAll('#t-mm .mm-m.l1').length")
-        good = title == sk['title'] and leg == sk['leg'] and vb == f"0 {-sk['pad']} 500 {392 + sk['pad']}" and labels == 19 and main > 0 and (th == 'ios' or costume >= 2)
-        check(good, f"{th}: {title} · {'/'.join(leg)} · costume layers {costume}")
-        seen.add(sk['title'])
+        good = title == '训练部位' and leg == ['主要部位', '次要部位'] and vb == f"0 {-pad} 500 {392 + pad}" and labels == 20 and main > 0 and (th == 'ios' or costume >= 2)
+        check(good, f"{th}: {title} · {'/'.join(leg)} · costume layers {costume} · labels {labels}")
         ev(f"VIEW.date = '{sat}'; renderToday()"); pg.wait_for_timeout(200)
-        check(ev("document.querySelector('#t-mm .mm-plan').textContent") == sk['rest'] and ev("document.getElementById('t-mm').classList.contains('mm-rest')"), f"{th}: rest day says “{sk['rest']}”")
+        check(ev("document.querySelector('#t-mm .mm-plan').textContent") == '好好恢复' and ev("document.getElementById('t-mm').classList.contains('mm-rest')"), f"{th}: rest day")
         check(ev("document.documentElement.scrollWidth") == 360, f'{th}: no horizontal overflow')
-    check(len(seen) == len(themes), f'every theme has its own title ({len(seen)}/{len(themes)})')
+    # 人体比例：7.5 头身左右、肩宽约 2 个头高、手腕在裆部高度附近、膝盖在 70% 高度附近
+    pr = ev("""(() => { const P = MM_OUT.map(s => [s[4], s[5]]); const ys = P.map(p => p[1]); const H = Math.max(...ys);
+      const head = P.find(p => p[0] === 12)[1] + 3, sh = Math.max(...P.filter(p => p[1] < 120).map(p => p[0])) * 2;
+      const wrist = P.find(p => p[0] === 66.8)[1], crotch = P[P.length - 1][1], knee = P.find(p => p[0] === 30.5)[1];
+      return { heads: H / head, shoulder: sh / head, wrist: wrist / H, crotch: crotch / H, knee: knee / H }; })()""")
+    check(7 <= pr['heads'] <= 8 and 1.9 <= pr['shoulder'] <= 2.3 and abs(pr['wrist'] - pr['crotch']) < 0.05 and 0.68 <= pr['knee'] <= 0.76, f'realistic proportions {pr}')
     check(not errs, 'no page errors ' + str(errs[:3]))
     b.close()
 print(f'{ok} pass, {bad} fail')
