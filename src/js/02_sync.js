@@ -303,10 +303,10 @@ function stepsFor(date) {
   if (date === t && watchLinked()) return Object.assign({ n: 0, src: 'wait', actual: 0 }, o);
   return Object.assign({ n: usual, src: date < t ? 'none' : 'usual', actual: null }, o);
 }
-// 有氧：手表数字 × 计入比例。比例按种类：椭圆机 / 跑步（步数里已经算过一部分，所以更低）/ 其他
+// 有氧：手表数字 × 计入比例。比例按种类：椭圆机 / 跑步（手表把这段的步数也算进了步数，步数消耗里已经有一部分，所以更低）/ 其他
 const CARDIO_KINDS = [
-  { k: 'ell', name: '椭圆机', key: 'cardioEll', why: '手表的数字含基础代谢，而且偏高' },
-  { k: 'run', name: '跑步', key: 'cardioRun', why: '跑步的步数已经算进步数消耗了' },
+  { k: 'ell', name: '椭圆机', key: 'cardioEll', why: '椭圆机的步数也算进了步数消耗' },
+  { k: 'run', name: '跑步', key: 'cardioRun', why: '跑步的步数也算进了步数消耗' },
   { k: 'other', name: '其他', key: 'cardioFactor', why: '手表的数字含基础代谢，而且偏高' }
 ];
 const cardioKind = e => /椭圆|elliptical|クロストレーナー/i.test(e && e.name || '') ? 'ell' : /跑|run|ラン/i.test(e && e.name || '') ? 'run' : 'other';

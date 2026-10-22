@@ -420,8 +420,16 @@ function burnPreview() {
   const el = $('#x-prev');
   if (!el) return;
   const k = num($('#x-kcal').value), c = CARDIO_KINDS.find(x => x.k === BURN.k) || CARDIO_KINDS[2];
+  const def = cardioKindPct(BURN.k);   // 旧记录按当时的比例存的；和现在的默认不同时，给一个一键改成现在比例的按钮
   el.innerHTML = `<div class="cd-prev-r"><span>计入</span><b class="num">+${fmt(Math.round(k * BURN.pct / 100))}</b><span>kcal</span></div>
-    <div class="cd-prev-s"><span class="num">${fmt(k)} × ${BURN.pct}%</span> · ${c.why}</div>`;
+    <div class="cd-prev-s"><span class="num">${fmt(k)} × ${BURN.pct}%</span> · ${c.why}</div>
+    ${BURN.pct !== def ? `<button class="link cd-redo" onclick="burnUseDefault()">这条是按 ${BURN.pct}% 记的，改成现在的 ${def}%</button>` : ''}`;
+}
+function burnUseDefault() {
+  BURN.pct = BURN.keep = cardioKindPct(BURN.k);
+  const pe = document.querySelector(`.cd-opt[data-k="${BURN.k}"] [data-pct]`);
+  if (pe) pe.textContent = BURN.pct + '%';
+  burnPreview();
 }
 function saveBurn(id) {
   const k = num($('#x-kcal').value);

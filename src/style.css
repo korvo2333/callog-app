@@ -510,6 +510,7 @@ body:has(#sheet-bg.open .sheet.tall) .toast { bottom: calc(86px + env(safe-area-
 .cd-prev-r { display: flex; align-items: baseline; gap: 6px; }
 .cd-prev-r b { font-size: 26px; color: var(--good); }
 .cd-prev-s { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+.cd-redo { display: block; margin-top: 8px; font-size: 13px; padding: 0; }
 .cd-srow { display: inline-flex; align-items: center; gap: 8px; }
 .cd-srow .act-ic.sm { width: 26px; height: 26px; }
 .cd-srow .act-ic.sm svg { width: 15px; height: 15px; }

@@ -177,16 +177,16 @@ with sync_playwright() as p:
     check(pg.evaluate("stepsFor(today())") ['src'] == 'manual', 'manual steps override watch')
     pg.click('.act-steps'); pg.click('#sheet-body .btn >> text=清空'); pg.wait_for_timeout(200)
     check(pg.evaluate("stepsFor(today())")['n'] == 12500, 'clear manual → back to watch')
-    # 有氧：选种类（椭圆机 70% / 跑步 50% / 其他 70%）+ 手表数字 → 自动算计入多少
+    # 有氧：选种类（椭圆机 50% / 跑步 50% / 其他 70%）+ 手表数字 → 自动算计入多少
     check('有氧' not in pg.inner_text('.c-more') and '拍成分表' in pg.inner_text('.c-more'), 'compose card: no duplicate cardio link, has label scan')
     pg.click('.act-add')
     check(pg.locator('.cd-opt').count() == 3 and pg.locator('.cd-opt .act-ic svg').count() == 3, 'cardio sheet: 3 kinds with themed icons')
     check(pg.get_attribute('.cd-opt[data-k="ell"]', 'aria-checked') == 'true' and not pg.is_visible('#x-name'), 'default kind 椭圆机, no name field')
     pg.fill('#x-kcal', '320')
-    check('+224' in pg.inner_text('#x-prev') and '70%' in pg.inner_text('#x-prev'), 'elliptical preview 320 × 70% = +224')
+    check('+160' in pg.inner_text('#x-prev') and '50%' in pg.inner_text('#x-prev') and '步数' in pg.inner_text('#x-prev'), 'elliptical preview 320 × 50% = +160 (steps already counted)')
     pg.click('#sheet-body .btn.pri'); pg.wait_for_timeout(200)
     e1 = pg.evaluate("DB.log.find(e => e.type === 'burn' && e.name === '椭圆机')")
-    check(e1 and e1['ratio'] == 70 and pg.evaluate("dayInfo(today()).parts.cardioK") == 224, 'elliptical saved, counted 224')
+    check(e1 and e1['ratio'] == 50 and pg.evaluate("dayInfo(today()).parts.cardioK") == 160, 'elliptical saved, counted 160')
     pg.click('.act-add'); pg.click('.cd-opt[data-k="run"]'); pg.fill('#x-kcal', '200')
     check('+100' in pg.inner_text('#x-prev') and '步数' in pg.inner_text('#x-prev'), 'running preview 200 × 50% = +100 with reason')
     pg.click('#sheet-body .btn.pri'); pg.wait_for_timeout(200)
@@ -207,9 +207,21 @@ with sync_playwright() as p:
     # 编辑：打开时选中原来的种类和比例
     pg.evaluate("editEntry(DB.log.find(e => e.name === '跑步').id)"); pg.wait_for_timeout(300)
     check(pg.get_attribute('.cd-opt[data-k="run"]', 'aria-checked') == 'true' and '+100' in pg.inner_text('#x-prev'), 'edit opens with saved kind and ratio')
+    check(pg.locator('.cd-redo').count() == 0, 'no redo button when ratio matches default')
     pg.evaluate("closeSheet()"); pg.wait_for_timeout(300)
+    # 旧版按 70% 记的椭圆机：打开后一键改成现在的 50%
+    pg.evaluate("upsertRow('log', {id: 'l_ell70', date: today(), time: '06:00', meal: '', type: 'burn', name: '椭圆机', kcal: 200, protein: 0, fat: 0, carb: 0, note: '', foodId: '', ratio: 70})")
+    pg.evaluate("editEntry('l_ell70')"); pg.wait_for_timeout(300)
+    check('+140' in pg.inner_text('#x-prev') and pg.is_visible('.cd-redo'), 'old 70% entry keeps its ratio, offers update')
+    pg.click('.cd-redo')
+    check('+100' in pg.inner_text('#x-prev') and pg.locator('.cd-redo').count() == 0, 'redo → 200 × 50% = +100')
+    pg.click('#sheet-body .btn.pri'); pg.wait_for_timeout(300)
+    check(pg.evaluate("DB.log.find(e => e.id === 'l_ell70').ratio") == 50, 'updated ratio saved')
+    pg.evaluate("editEntry('l_ell70')"); pg.wait_for_timeout(300); pg.click('#sheet-body .btn.danger'); pg.wait_for_timeout(300)
+    if pg.is_visible('#dlg-bg.open'): pg.click('#dlg-ok'); pg.wait_for_timeout(300)
+    check(pg.evaluate("!DB.log.some(e => e.id === 'l_ell70' && !e._deleted)"), 'test entry removed')
     hero = pg.inner_text('#t-hero')
-    exp = pg.evaluate("fmt(1897 + 375 + 200 + 224 + 100 + 70 - 700)")
+    exp = pg.evaluate("fmt(1897 + 375 + 200 + 160 + 100 + 70 - 700)")
     check(exp in hero, 'hero target includes cardio: ' + exp)
     # 拍营养成分表：选图 → AI 读数 → 填克数 → 记录 + 存入食物库
     jpg = OUT + '/label.jpg'
