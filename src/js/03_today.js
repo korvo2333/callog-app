@@ -22,6 +22,7 @@ function renderToday() {
   renderBodyQuick();
   renderAI();
   renderList();
+  renderTimeline();
   setSync(syncState);
 }
 
@@ -212,6 +213,7 @@ function editEntry(id) {
   openSheet('编辑记录', `
     <input class="in" id="e-name" value="${esc(e.name)}" placeholder="名称">
     <input class="in" id="e-note" value="${esc(e.note)}" placeholder="份量" style="margin-top:8px">
+    <label class="tm-row"><span>时间</span><input class="in" type="time" id="e-time" value="${esc(e.time)}"></label>
     <div style="margin-top:10px">${segHTML('e-meal', MEALS, e.meal)}</div>
     <div style="margin-top:12px">${macroInputs('e', e)}</div>
     <div class="chips" style="margin-top:10px">
@@ -227,7 +229,7 @@ function editEntry(id) {
 }
 function saveEntry(id) {
   const m = readMacros('e');
-  upsertRow('log', Object.assign({ id, name: $('#e-name').value.trim() || '未命名', note: $('#e-note').value.trim(), meal: segVal('e-meal') }, m));
+  upsertRow('log', Object.assign({ id, name: $('#e-name').value.trim() || '未命名', note: $('#e-note').value.trim(), time: $('#e-time').value || '', meal: segVal('e-meal') }, m));
   closeSheet(); renderToday();
 }
 function delEntry(id) {
@@ -250,6 +252,7 @@ function openManual() {
   openSheet('手动添加', `
     <input class="in" id="m-name" placeholder="名称">
     <input class="in" id="m-note" placeholder="份量" style="margin-top:8px">
+    <label class="tm-row"><span>时间</span><input class="in" type="time" id="m-time" value="${VIEW.date === today() ? nowHM() : ''}"></label>
     <div style="margin-top:10px">${segHTML('m-meal', MEALS, COMPOSE.meal)}</div>
     <div style="margin-top:12px">${macroInputs('m')}</div>
     <label class="row" style="margin-top:12px;font-size:14px;gap:8px">
@@ -269,7 +272,7 @@ function saveManual() {
     const f = upsertRow('foods', Object.assign({ id: uid('f_'), name, category: '', serving: note, uses: 1, sort: DB.foods.length + 1 }, m));
     foodId = f.id;
   }
-  upsertRow('log', Object.assign({ id: uid('l_'), date: VIEW.date, time: VIEW.date === today() ? nowHM() : '', meal, name, note, type: 'food', foodId }, m));
+  upsertRow('log', Object.assign({ id: uid('l_'), date: VIEW.date, time: $('#m-time').value || '', meal, name, note, type: 'food', foodId }, m));
   closeSheet(); renderToday();
   toast('已添加');
 }

@@ -73,11 +73,16 @@ function mmLevel(parts, plan) {
   const ps = parts.split('|');
   return ps.some(p => plan.main.includes(p)) ? 1 : ps.some(p => plan.sub.includes(p)) ? 2 : 0;
 }
-function mmFigure(cx, regions, lines, plan) {
+function mmFigure(cx, regions, lines, center, plan, side, sk) {
   const sh = (d, lv, mirror) => `<path class="mm-m l${lv}" d="${d}"${mirror ? ' transform="scale(-1 1)"' : ''}/>`;
-  let s = `<g transform="translate(${cx} ${MM_Y}) scale(${MM_S})"><path class="mm-body" d="${MM_OUTLINE}"/>`;
+  let s = `<g transform="translate(${cx} ${MM_Y}) scale(${MM_S})">`;
+  if (sk.back) s += `<g class="sk-back">${sk.back(side)}</g>`;
+  s += `<path class="mm-body" d="${MM_OUTLINE}"/><g class="mm-ms">`;
   regions.forEach(([parts, d]) => { const lv = mmLevel(parts, plan); s += sh(d, lv) + sh(d, lv, 1); });
+  s += '</g>';
   if (lines) s += `<path class="mm-ln" d="${lines}"/><path class="mm-ln" d="${lines}" transform="scale(-1 1)"/>`;
+  s += `<path class="mm-ln" d="${center}"/>`;
+  if (sk.over) s += `<g class="sk-over">${sk.over(side)}</g>`;
   return s + '</g>';
 }
 function mmLabels(list, cx, side, plan) {
@@ -95,11 +100,12 @@ function mmLabels(list, cx, side, plan) {
   }).join('');
 }
 let MM_OUTLINE = '';
-function musclesSVG(plan) {
+function musclesSVG(plan, sk) {
   if (!MM_OUTLINE) MM_OUTLINE = mmOutline();
-  return `<svg class="mm-svg" viewBox="0 0 500 392" role="img" aria-label="训练部位：主要 ${plan.main.join('、') || '无'}；次要 ${plan.sub.join('、') || '无'}">`
-    + mmFigure(MM_FX, MM_FRONT, MM_LINES.f, plan) + `<g transform="translate(${MM_FX} ${MM_Y}) scale(${MM_S})"><path class="mm-ln" d="${MM_LINES.fc}"/></g>`
-    + mmFigure(MM_BX, MM_BACK, '', plan) + `<g transform="translate(${MM_BX} ${MM_Y}) scale(${MM_S})"><path class="mm-ln" d="${MM_LINES.bc}"/></g>`
+  const pad = sk.pad || 0;
+  return `<svg class="mm-svg" viewBox="0 ${-pad} 500 ${392 + pad}" role="img" aria-label="训练部位：主要 ${plan.main.join('、') || '无'}；次要 ${plan.sub.join('、') || '无'}">${MM_DEFS}`
+    + mmFigure(MM_FX, MM_FRONT, MM_LINES.f, MM_LINES.fc, plan, 'f', sk)
+    + mmFigure(MM_BX, MM_BACK, '', MM_LINES.bc, plan, 'b', sk)
     + mmLabels(MM_LABELS.fl, MM_FX, 'fl', plan) + mmLabels(MM_LABELS.fr, MM_FX, 'fr', plan)
     + mmLabels(MM_LABELS.bl, MM_BX, 'bl', plan) + mmLabels(MM_LABELS.br, MM_BX, 'br', plan)
     + '</svg>';
@@ -108,17 +114,17 @@ function renderMuscles() {
   const el = $('#t-mm');
   if (!el) return;
   const d = VIEW.date, w = parseYmd(d).getDay(), plan = WEEK_PARTS[w];
-  const rest = !plan.main.length && !plan.sub.length;
+  const rest = !plan.main.length && !plan.sub.length, sk = mmSkin();
   el.dataset.fold = 'today:mm';
   el.classList.toggle('folded', isFolded('today:mm'));
   el.classList.toggle('mm-rest', rest);
   el.classList.toggle('mm-anim', el.dataset.mmFor !== d);   // 换了日子才播放亮起来的动画（今日页经常重画，不每次都闪）
   el.dataset.mmFor = d;
-  el.innerHTML = `<div class="card-t fold-t" ${foldAttrs('today:mm')}>训练部位<span>${['周日', '周一', '周二', '周三', '周四', '周五', '周六'][w]} · ${plan.title}</span>${FOLD_IC}</div>
+  el.innerHTML = `<div class="card-t fold-t" ${foldAttrs('today:mm')}>${sk.title}<span>${['周日', '周一', '周二', '周三', '周四', '周五', '周六'][w]} · ${plan.title}</span>${FOLD_IC}</div>
     <div class="fold"><div class="fold-in">
-      <div class="mm-plan">${plan.items}</div>
-      ${musclesSVG(plan)}
-      ${rest ? '' : `<div class="mm-leg"><span><i class="l1"></i>主要部位</span><span><i class="l2"></i>次要部位</span></div>`}
+      <div class="mm-plan">${w === 6 ? sk.rest : plan.items}</div>
+      ${musclesSVG(plan, sk)}
+      ${rest ? '' : `<div class="mm-leg"><span><i class="l1"></i>${sk.leg[0]}</span><span><i class="l2"></i>${sk.leg[1]}</span></div>`}
     </div></div>`;
 }
 
