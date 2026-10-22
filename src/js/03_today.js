@@ -189,7 +189,7 @@ function renderList() {
     html += `<div class="meal ${isFolded('meal:burn') ? 'folded' : ''}" data-fold="meal:burn"><div class="meal-h fold-t" ${foldAttrs('meal:burn')}><span>有氧<small class="meal-n">${burns.length}</small></span><span class="num">+${fmt(info.burn)} kcal</span>${FOLD_IC}</div>
       <div class="fold"><div class="fold-in">${burns.map(e => `<div class="ent cd-ent" onclick="editEntry('${e.id}')">
         <span class="act-ic sm" aria-hidden="true">${cardioIcon(cardioKind(e))}</span>
-        <div class="ent-i"><div class="ent-n">${esc(e.name)}</div><div class="ent-s">手表 ${fmt(e.kcal)} × ${cardioPct(e)}%</div></div>
+        <div class="ent-i"><div class="ent-n">${esc(e.name)}</div><div class="ent-s">${burnMins(e) ? `${fmt(burnMins(e))} 分钟 · 手表 ${fmt(e.kcal)}` : `手表 ${fmt(e.kcal)} × ${cardioPct(e)}%`}</div></div>
         <div class="ent-k burn num">+${fmt(cardioCounted(e))}</div></div>`).join('')}</div></div></div>`;
   } else if (burns.length) {
     html += `<div class="meal ${isFolded('meal:burn') ? 'folded' : ''}" data-fold="meal:burn"><div class="meal-h fold-t" ${foldAttrs('meal:burn')}><span>消耗<small class="meal-n">${burns.length}</small></span><span class="num">${fmt(info.burn)} kcal</span>${FOLD_IC}</div>
@@ -386,11 +386,13 @@ function openBurn(e) {
   openSheet('有氧', `
     <div class="cd-opts" role="radiogroup" aria-label="种类">
       ${CARDIO_KINDS.map(c => `<button class="cd-opt" data-k="${c.k}" role="radio" onclick="pickCardio('${c.k}')">
-        <span class="act-ic">${cardioIcon(c.k)}</span><span class="cd-l">${c.name}</span><small class="num" data-pct="${c.k}">${cardioKindPct(c.k)}%</small></button>`).join('')}
+        <span class="act-ic">${cardioIcon(c.k)}</span><span class="cd-l">${c.name}</span><small class="num" data-pct="${c.k}">${c.mins ? '按时长' : cardioKindPct(c.k) + '%'}</small></button>`).join('')}
     </div>
     <input class="in" id="x-name" value="${esc(editing && k0 === 'other' && e.name !== '其他' && e.name !== '有氧' ? e.name : '')}" placeholder="名称（选填）：游泳、单车、拳击…" style="margin-top:10px">
-    <label class="lbl">手表显示的 kcal</label>
-    <input class="in" id="x-kcal" type="number" inputmode="numeric" value="${editing ? e.kcal : ''}" placeholder="0" oninput="burnPreview()">
+    <div class="grid2 cd-in" id="x-in">
+      <div><label class="lbl">手表显示的 kcal</label><input class="in" id="x-kcal" type="number" inputmode="numeric" value="${editing ? e.kcal : ''}" placeholder="0" oninput="burnPreview()"></div>
+      <div class="cd-mins"><label class="lbl">时长（分钟）</label><input class="in" id="x-mins" type="number" inputmode="decimal" value="${editing && burnMins(e) ? burnMins(e) : ''}" placeholder="0" oninput="burnPreview()"></div>
+    </div>
     <div class="preview cd-prev" id="x-prev"></div>
     <div class="hint">走路不用记：步数里已经算过了</div>
     <div class="actions">
@@ -410,20 +412,29 @@ function pickCardio(k, init) {
     const on = b.dataset.k === k;
     b.classList.toggle('on', on); b.setAttribute('aria-checked', on);
   });
+  const c = CARDIO_KINDS.find(x => x.k === k) || CARDIO_KINDS[2];
   const pe = document.querySelector(`.cd-opt[data-k="${k}"] [data-pct]`);
-  if (pe) pe.textContent = BURN.pct + '%';
+  if (pe && !c.mins) pe.textContent = BURN.pct + '%';
   const nm = $('#x-name');
   if (nm) nm.style.display = k === 'other' ? '' : 'none';
+  const xin = $('#x-in');
+  if (xin) xin.classList.toggle('one', !c.mins);   // 只有椭圆机要填时长
   burnPreview();
 }
 function burnPreview() {
   const el = $('#x-prev');
   if (!el) return;
   const k = num($('#x-kcal').value), c = CARDIO_KINDS.find(x => x.k === BURN.k) || CARDIO_KINDS[2];
+  const mins = c.mins && $('#x-mins') ? num($('#x-mins').value) : 0;
+  BURN.calc = mins > 0 ? ellCalc(k, mins) : null;
+  const r = BURN.calc;
   const def = cardioKindPct(BURN.k);   // 旧记录按当时的比例存的；和现在的默认不同时，给一个一键改成现在比例的按钮
-  el.innerHTML = `<div class="cd-prev-r"><span>计入</span><b class="num">+${fmt(Math.round(k * BURN.pct / 100))}</b><span>kcal</span></div>
-    <div class="cd-prev-s"><span class="num">${fmt(k)} × ${BURN.pct}%</span> · ${c.why}</div>
-    ${BURN.pct !== def ? `<button class="link cd-redo" onclick="burnUseDefault()">这条是按 ${BURN.pct}% 记的，改成现在的 ${def}%</button>` : ''}`;
+  el.innerHTML = r
+    ? `<div class="cd-prev-r"><span>计入</span><b class="num">+${fmt(r.counted)}</b><span>kcal</span></div>
+      <div class="cd-prev-s num">${fmt(k)} × 90% − 静息 ${fmt(r.rest)} − 步数里已算 ${fmt(r.steps)}（${fmt(r.stepsN)} 步）</div>`
+    : `<div class="cd-prev-r"><span>计入</span><b class="num">+${fmt(Math.round(k * BURN.pct / 100))}</b><span>kcal</span></div>
+      <div class="cd-prev-s"><span class="num">${fmt(k)} × ${BURN.pct}%</span> · ${c.why}${c.mins ? '；填上时长会算得更准' : ''}</div>
+      ${BURN.pct !== def ? `<button class="link cd-redo" onclick="burnUseDefault()">这条是按 ${BURN.pct}% 记的，改成现在的 ${def}%</button>` : ''}`;
 }
 function burnUseDefault() {
   BURN.pct = BURN.keep = cardioKindPct(BURN.k);
@@ -434,6 +445,9 @@ function burnUseDefault() {
 function saveBurn(id) {
   const k = num($('#x-kcal').value);
   if (!k) { toast('填写手表的 kcal'); return; }
+  const mins = $('#x-mins') && BURN.k === 'ell' ? num($('#x-mins').value) : 0;
+  if (mins < 0 || mins > 600) { toast('时长不对'); return; }
+  if (mins > 0) burnPreview();   // 确保用最新的时长算
   const legacy = !$('.cd-opts');
   const old = id ? DB.log.find(x => x.id === id) : null;
   const c = CARDIO_KINDS.find(x => x.k === BURN.k) || CARDIO_KINDS[2];
@@ -441,7 +455,7 @@ function saveBurn(id) {
   if (!legacy) { LOCAL.cardioKind = c.k; saveLocal(); }   // 下次默认选上次的种类
   upsertRow('log', {
     id: id || uid('l_'), date: old ? old.date : VIEW.date, time: old ? old.time : VIEW.date === today() ? nowHM() : '', meal: '', type: 'burn',
-    name, kcal: k, protein: 0, fat: 0, carb: 0, note: '', foodId: '', ratio: legacy ? 0 : BURN.pct
+    name, kcal: k, protein: 0, fat: 0, carb: 0, note: mins > 0 ? mins + ' 分钟' : '', foodId: '', ratio: legacy ? 0 : mins > 0 && BURN.calc ? BURN.calc.pct : BURN.pct
   });
   closeSheet(); renderToday();
 }

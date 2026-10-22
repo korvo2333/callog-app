@@ -305,14 +305,24 @@ function stepsFor(date) {
 }
 // 有氧：手表数字 × 计入比例。比例按种类：椭圆机 / 跑步（手表把这段的步数也算进了步数，步数消耗里已经有一部分，所以更低）/ 其他
 const CARDIO_KINDS = [
-  { k: 'ell', name: '椭圆机', key: 'cardioEll', why: '椭圆机的步数也算进了步数消耗' },
+  { k: 'ell', name: '椭圆机', key: 'cardioEll', why: '椭圆机的步数也算进了步数消耗', mins: true },
   { k: 'run', name: '跑步', key: 'cardioRun', why: '跑步的步数也算进了步数消耗' },
   { k: 'other', name: '其他', key: 'cardioFactor', why: '手表的数字含基础代谢，而且偏高' }
 ];
 const cardioKind = e => /椭圆|elliptical|クロストレーナー/i.test(e && e.name || '') ? 'ell' : /跑|run|ラン/i.test(e && e.name || '') ? 'run' : 'other';
 const cardioKindPct = (k, s) => { const c = CARDIO_KINDS.find(x => x.k === k) || CARDIO_KINDS[2]; s = s || cfg(); return Math.round(pf(s[c.key] != null ? s[c.key] : s.cardioFactor) * 100); };
-// 每条记录存了自己的比例（以后改设置不影响旧记录）；没存的按种类的默认值
-const cardioPct = (e, s) => { const r = num(e.ratio); return r > 0 ? r : cardioKindPct(cardioKind(e), s); };
+// 椭圆机填了时长就精确算：手表 × 90%（手表偏高）− 这段时间本来就有的静息消耗 − 这段时间的步数在步数消耗里已经算过的部分
+const WATCH_ACC = 0.9;
+function ellCalc(kcal, min, s) {
+  s = s || cfg();
+  const rest = pf(s.bmr) * pf(s.restFactor) / 1440 * min;
+  const stepsN = min * num(s.ellCadence || 106), steps = stepsN * num(s.stepKcal) / 1000;
+  const counted = Math.max(0, Math.round(kcal * WATCH_ACC - rest - steps));
+  return { rest: Math.round(rest), steps: Math.round(steps), stepsN: Math.round(stepsN), counted, pct: kcal ? Math.round(counted / kcal * 1000) / 10 : 0 };
+}
+const burnMins = e => { const m = /([\d.]+)\s*分钟/.exec(e && e.note || ''); return m ? +m[1] : 0; };
+// 每条记录存了自己的比例（以后改设置不影响旧记录）；没存的按种类的默认值。按时长算的记录比例可能是 0
+const cardioPct = (e, s) => { const r = num(e.ratio); return r > 0 || burnMins(e) ? r : cardioKindPct(cardioKind(e), s); };
 function cardioCounted(e, s) { return Math.round(num(e.kcal) * cardioPct(e, s) / 100); }
 function strengthRate() {   // 以后几天的预估：最近 14 天练了几次力量；新公式刚开始时用设置里的每周次数
   const s = cfg(), t = today();
