@@ -43,10 +43,12 @@ with sync_playwright() as p:
     tot = ev(f"Math.round(dayInfo('{d}').intake.kcal)")
     head = ev("document.querySelector('[data-fold=\"tl:kcal\"] .tl-h .num').textContent")
     check(head.replace(',', '').startswith(str(tot)), f'kcal header shows the day total ({head} vs {tot})')
-    # 线：最后一个点 = 当天合计
-    last_cy = ev("(() => { const c = [...document.querySelectorAll('#tl-kcal svg > circle')]; return +c[c.length - 1].getAttribute('cy'); })()")
-    lbl = ev("(() => { const t = [...document.querySelectorAll('#tl-kcal svg > text')].pop(); return t.textContent; })()")
-    check(lbl.replace(',', '') == str(tot), f'cumulative line ends at the total ({lbl})')
+    # 线：黑色平滑曲线，没有圆点；累计在右轴，柱在左轴
+    line = ev("""(() => { const p = [...document.querySelectorAll('#tl-kcal svg > path[fill="none"]')].pop(); return [p.getAttribute('stroke'), (p.getAttribute('d').match(/[HV]/g) || []).length, (p.getAttribute('d').match(/L/g) || []).length]; })()""")
+    check(line[0] == '#000' and line[1] == 0 and line[2] > 20, f'cumulative line: black, smooth, no steps ({line})')
+    check(ev("document.querySelectorAll('#tl-kcal svg > circle').length") == 0, 'no dots on the line')
+    axes = ev("""(() => { const t = [...document.querySelectorAll('#tl-kcal svg > text.ax')]; return [t.filter(e => e.getAttribute('text-anchor') === 'end' && +e.getAttribute('x') < 40).length, t.filter(e => e.getAttribute('text-anchor') === 'start' && +e.getAttribute('x') > e.ownerSVGElement.viewBox.baseVal.width * 0.8).map(e => /K$/.test(e.textContent) ? parseFloat(e.textContent) * 1000 : +e.textContent.replace(/,/g, '')).pop()]; })()""")
+    check(axes[0] >= 2 and axes[1] >= tot, f'left axis for bars, right axis reaches the total ({axes})')
     # 点图表看那一次
     box = ev("(() => { const r = document.querySelector('#tl-kcal svg').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })()")
     ev(f"document.querySelector('#tl-kcal svg').dispatchEvent(new PointerEvent('pointerdown', {{clientX: {box[0] + box[2] * 0.12}, clientY: {box[1] + box[3] / 2}, bubbles: true}}))")

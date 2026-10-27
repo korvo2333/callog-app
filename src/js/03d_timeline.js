@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════
 // 今日：摄入时间（热量 + 蛋白质 / 脂肪 / 碳水，各一张）
-// 柱 = 那个时间吃了多少，线 = 吃到那时为止的累计，虚线 = 当天目标
+// 柱 = 那个时间吃了多少（左轴），线 = 吃到那时为止的累计（右轴），虚线 = 当天目标
 // ════════════════════════════════════════════
 const MEAL_HM = { '早餐': '08:00', '午餐': '12:30', '加餐': '15:30', '晚餐': '19:00' };   // 没有时间的记录按餐次估
 const TL_K = [
@@ -10,6 +10,16 @@ const TL_K = [
   { k: 'carb', name: '碳水', unit: 'g', color: 'var(--carb)', t: 'carbT' }
 ];
 const hm2h = s => { const m = /^(\d{1,2}):(\d{2})/.exec(s || ''); return m ? +m[1] + +m[2] / 60 : null; };
+const TL_RAMP = 1;   // 累计线每次升上去用的时长（小时）
+// 颜色是不是深色（按亮度）
+function tlDark(c) {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c), r = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(c);
+  let v;
+  if (m) { const x = m[1].length === 3 ? m[1].replace(/./g, '$&$&') : m[1]; v = [0, 2, 4].map(i => parseInt(x.substr(i, 2), 16)); }
+  else if (r) v = [+r[1], +r[2], +r[3]];
+  else return false;
+  return 0.299 * v[0] + 0.587 * v[1] + 0.114 * v[2] < 128;
+}
 const h2hm = h => { const m = Math.round(h * 60); return `${pad2(Math.floor(m / 60) % 24)}:${pad2(m % 60)}`; };
 
 // 按时间排好，20 分钟以内的算同一次
@@ -59,7 +69,7 @@ function tlChart(el, g, o, target, now) {
   if (!el) return;
   CHARTS[el.id] = () => tlChart(el, g, o, target, now);
   const k = o.k, W = Math.max(260, Math.round(el.clientWidth || 320)), H = 156;
-  const m = { l: 36, r: 14, t: 14, b: 22 };
+  const m = { l: 36, r: 38, t: 14, b: 22 };
   const hs = g.map(x => x.h);
   const lo = Math.max(0, Math.min(6, ...hs.map(h => Math.floor(h - 0.5))));
   const hi = Math.min(24, Math.max(22, ...hs.map(h => Math.ceil(h + 0.5)), now !== null ? Math.ceil(now) : 0));
@@ -68,13 +78,22 @@ function tlChart(el, g, o, target, now) {
   let acc = 0;
   const cum = g.map(x => (acc += x[k]));
   const total = acc;
-  const t = niceTicks(0, Math.max(target, total, 1) * 1.08, 3);
+  // 左轴：柱，按当天单次最多的那次；右轴：累计和目标
+  const t = niceTicks(0, Math.max(...g.map(x => x[k]), 1) * 1.08, 3);
+  const t2 = niceTicks(0, Math.max(target, total, 1) * 1.08, 3);
   const Y = v => m.t + (1 - v / t.hi) * (H - m.t - m.b);
+  const Y2 = v => m.t + (1 - v / t2.hi) * (H - m.t - m.b);
   const fv = v => k === 'kcal' ? fmt(v) : String(r1(v));
+  // 累计线：浅色背景用黑色，深色背景用白色
+  const bg = getComputedStyle(el).getPropertyValue('--surface').trim() || getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  const lc = tlDark(bg) ? '#fff' : '#000';
   let svg = '';
   t.ticks.forEach(v => {
     svg += `<line class="gl" x1="${m.l}" x2="${W - m.r}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>`;
     svg += `<text class="ax" x="${m.l - 6}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end">${tickLabel(v)}</text>`;
+  });
+  t2.ticks.forEach(v => {
+    svg += `<text class="ax" x="${W - m.r + 6}" y="${(Y2(v) + 3).toFixed(1)}" text-anchor="start">${tickLabel(v)}</text>`;
   });
   for (let h = Math.ceil(lo / 3) * 3; h <= hi; h += 3) {
     const a = h === lo ? 'start' : h === hi ? 'end' : 'middle';
@@ -82,9 +101,9 @@ function tlChart(el, g, o, target, now) {
   }
   // 目标
   if (target > 0) {
-    const y = Y(target).toFixed(1);
+    const y = Y2(target).toFixed(1);
     svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y}" y2="${y}" stroke="var(--muted)" stroke-width="1.3" stroke-dasharray="5 4"/>`;
-    svg += `<text x="${m.l + 4}" y="${(Y(target) - 4).toFixed(1)}" class="ax">目标 ${fv(target)}</text>`;
+    svg += `<text x="${m.l + 4}" y="${(Y2(target) - 4).toFixed(1)}" class="ax">目标 ${fv(target)}</text>`;
   }
   // 现在
   if (now !== null && now > lo && now < hi) {
@@ -101,15 +120,19 @@ function tlChart(el, g, o, target, now) {
     svg += x.est ? `<path d="${d}" fill="color-mix(in srgb, ${o.color} 22%, transparent)" stroke="${o.color}" stroke-width="1.2" stroke-dasharray="3 2"/>`
       : `<path d="${d}" fill="color-mix(in srgb, ${o.color} 55%, transparent)"/>`;
   });
-  // 线：累计（台阶状：吃下去那一刻跳上去）
+  // 线：累计（平滑：每次摄入在记录时间前后各半小时里按 S 形升上去）
   const end = now !== null ? Math.max(now, g[g.length - 1].h) : Math.max(hi - 0.5, g[g.length - 1].h);
-  let p = `M${X(lo).toFixed(1)},${Y(0).toFixed(1)}`;
-  g.forEach((x, i) => { p += `H${X(x.h).toFixed(1)}V${Y(cum[i]).toFixed(1)}`; });
-  p += `H${X(Math.min(hi, end)).toFixed(1)}`;
-  svg += `<path d="${p}" fill="none" stroke="${o.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
-  g.forEach((x, i) => { svg += `<circle cx="${X(x.h).toFixed(1)}" cy="${Y(cum[i]).toFixed(1)}" r="3.2" fill="${o.color}" stroke="var(--surface)" stroke-width="1.5"/>`; });
-  const ex = X(Math.min(hi, end)), ey = Y(total), rightSide = ex > W - 56;
-  svg += `<text x="${(rightSide ? ex - 6 : ex + 6).toFixed(1)}" y="${(ey - 6).toFixed(1)}" text-anchor="${rightSide ? 'end' : 'start'}" style="fill:var(--text);font-size:11.5px;font-weight:700">${fv(total)}</text>`;
+  const cumAt = h => g.reduce((s, x) => {
+    const u = Math.min(1, Math.max(0, (h - x.h + TL_RAMP / 2) / TL_RAMP));
+    return s + x[k] * u * u * (3 - 2 * u);
+  }, 0);
+  const x1 = Math.min(hi, end), n = Math.max(2, Math.ceil((X(x1) - X(lo)) / 2));
+  let p = '';
+  for (let i = 0; i <= n; i++) {
+    const h = lo + (x1 - lo) * i / n;
+    p += `${i ? 'L' : 'M'}${X(h).toFixed(1)},${Y2(cumAt(h)).toFixed(1)}`;
+  }
+  svg += `<path d="${p}" fill="none" stroke="${lc}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
   svg += `<g class="xh"></g>`;
   el.innerHTML = `<div class="ch-read"></div><svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${o.name}按时间：共 ${fv(total)} ${o.unit}">${svg}</svg>`;
   const read = el.querySelector('.ch-read'), hx = el.querySelector('.xh'), svgEl = el.querySelector('svg');
@@ -119,7 +142,7 @@ function tlChart(el, g, o, target, now) {
   };
   const show = i => {
     const x = X(g[i].h).toFixed(1);
-    hx.innerHTML = `<line x1="${x}" x2="${x}" y1="${m.t}" y2="${H - m.b}" stroke="var(--muted)" stroke-width="1"/><circle cx="${x}" cy="${Y(cum[i]).toFixed(1)}" r="5.5" fill="${o.color}" stroke="var(--surface)" stroke-width="2"/>`;
+    hx.innerHTML = `<line x1="${x}" x2="${x}" y1="${m.t}" y2="${H - m.b}" stroke="var(--muted)" stroke-width="1"/>`;
     read.innerHTML = readFor(i);
   };
   read.innerHTML = '最近 · ' + readFor(g.length - 1);
