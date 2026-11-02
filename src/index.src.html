@@ -126,6 +126,8 @@
 <!-- 拍营养成分表用（放在页面外层：在今日、食物库都能用） -->
 <input type="file" id="lb-cam" accept="image/*" capture="environment" hidden onchange="pickLabel(event)">
 <input type="file" id="lb-gal" accept="image/*" hidden onchange="pickLabel(event)">
+<input type="file" id="cd-cam" accept="image/*" capture="environment" hidden onchange="cdAiPick(event)">
+<input type="file" id="cd-gal" accept="image/*" hidden onchange="cdAiPick(event)">
 <div class="ov-bg" id="sheet-bg" onclick="if(event.target===this)closeSheet()">
   <div class="sheet">
     <div class="grab"></div>

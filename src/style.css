@@ -490,14 +490,14 @@ body:has(#sheet-bg.open .sheet.tall) .toast { bottom: calc(86px + env(safe-area-
 #swipe-hint.ready b { opacity: 1; }
 
 /* 有氧：选种类（图标框沿用各主题的 .act-ic 样式）+ 手表 kcal → 自动算计入多少 */
-.cd-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.cd-opt { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: 12px 6px 10px; font: inherit; cursor: pointer;
+.cd-opts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.cd-opt { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; padding: 10px 2px 8px; font: inherit; cursor: pointer;
   background: var(--surface2); color: var(--text); border: 1.5px solid var(--border); border-radius: var(--r-ctl);
   transition: border-color .18s, background-color .18s, transform .12s; }
 .cd-opt:active { transform: scale(.97); }
-.cd-opt .act-ic { width: 44px; height: 44px; transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
-.cd-opt .act-ic svg { width: 24px; height: 24px; }
-.cd-opt .cd-l { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.cd-opt .act-ic { width: 40px; height: 40px; transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+.cd-opt .act-ic svg { width: 23px; height: 23px; }
+.cd-opt .cd-l { font-size: 13px; font-weight: 600; white-space: nowrap; }
 .cd-opt small { font-size: 12px; color: var(--muted); }
 .cd-opt.on { border-color: var(--accent); background: var(--accent-soft); }
 .cd-opt.on .act-ic { transform: scale(1.08); }
@@ -511,8 +511,38 @@ body:has(#sheet-bg.open .sheet.tall) .toast { bottom: calc(86px + env(safe-area-
 .cd-prev-r b { font-size: 26px; color: var(--good); }
 .cd-prev-s { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
 .cd-in { margin-top: 2px; }
-.cd-in.one { grid-template-columns: 1fr; }
-.cd-in.one .cd-mins { display: none; }
+.cd-in .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cd-gait { margin-top: 10px; }
+.cd-gait small { font-weight: 500; color: var(--muted); font-size: 11px; }
+.cd-kt { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--text2); }
+.cd-kt input { width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
+.cd-lv { margin-top: 0; }
+.cd-lv .chip { display: grid; grid-template-columns: auto auto; column-gap: 5px; align-items: baseline; justify-content: start; text-align: left; flex: 1 1 0; min-width: 0; padding: 7px 9px; white-space: normal; }
+.cd-lv .chip small { grid-column: 1 / -1; font-size: 11px; color: var(--muted); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cd-lv .chip .num { color: var(--muted); font-size: 12px; }
+.cd-lv .chip.on .num, .cd-lv .chip.on small { color: inherit; opacity: .8; }   /* 有的主题选中是实心底色：跟着选中的字色走 */
+.cd-set-hint { margin: 2px 0 8px; }
+/* 有氧拍照识别 */
+.cd-ai { margin: 0 0 12px; }
+.cd-ai-tx[hidden] { display: none; }
+.cd-ai-row { display: grid; grid-template-columns: 1.25fr 1.1fr 1fr; gap: 6px; }
+.cd-ai-b { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 8px 6px; font-size: 14px; white-space: nowrap; min-width: 0; }
+.cd-ai-b span { overflow: hidden; text-overflow: ellipsis; }
+[data-theme="terminal"] .cd-ai-b::before, [data-theme="terminal"] .cd-ai-b::after { content: none !important; }
+.cd-ai-w[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.cd-ai-b svg { width: 19px; height: 19px; flex-shrink: 0; }
+.cd-ai-tx { display: flex; gap: 6px; margin-top: 8px; }
+.cd-ai-tx .in { flex: 1; min-width: 0; }
+.cd-ai-tx .btn { flex: 0 0 auto; white-space: nowrap; padding: 8px 12px; font-size: 13px; }
+.cd-ai-res { display: flex; gap: 10px; align-items: flex-start; margin-top: 10px; font-size: 13px; color: var(--text2); }
+.cd-ai-th { width: 56px; height: 56px; object-fit: cover; border-radius: calc(var(--r-ctl) - 2px); border: 1px solid var(--border); flex-shrink: 0; background: var(--surface); }
+.cd-ai-msg { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cd-ai-msg b { color: var(--text); font-size: 14px; }
+.cd-ai-f { color: var(--text2); }
+.cd-ai-note { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.cd-ai-err { color: var(--bad); }
+.cd-ai-msg .link { align-self: flex-start; padding: 0; font-size: 13px; }
+.cd-ai-msg .hint { margin-top: 2px; }
 .cd-redo { display: block; margin-top: 8px; font-size: 13px; padding: 0; }
 .cd-srow { display: inline-flex; align-items: center; gap: 8px; }
 .cd-srow .act-ic.sm { width: 26px; height: 26px; }

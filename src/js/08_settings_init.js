@@ -39,7 +39,8 @@ function renderSettings() {
         ${numRow('日常系数', 'restFactor', 0.01)}
         ${numRow('每千步 kcal', 'stepKcal')}
         ${numRow('力量 kcal', 'strengthKcal')}
-        ${CARDIO_KINDS.map(c => `<label class="srow"><span class="cd-srow"><span class="act-ic sm" aria-hidden="true">${cardioIcon(c.k)}</span>${c.name}计入 %</span><input class="in sm" type="number" inputmode="numeric" value="${cardioKindPct(c.k, s)}" onchange="setNum('${c.key}', Math.min(100, Math.max(1, parseFloat(this.value) || ${c.k === 'other' ? 70 : c.k === 'run' ? 50 : 20})) / 100)"></label>`).join('')}
+        ${CARDIO_KINDS.filter(c => c.key).map(c => `<label class="srow"><span class="cd-srow"><span class="act-ic sm" aria-hidden="true">${cardioIcon(c.k)}</span>${c.name}没填时长 %</span><input class="in sm" type="number" inputmode="numeric" value="${cardioKindPct(c.k, s)}" onchange="setNum('${c.key}', Math.min(100, Math.max(1, parseFloat(this.value) || ${Math.round(c.def * 100)})) / 100)"></label>`).join('')}
+        <div class="hint cd-set-hint">有氧填了时长就按公式算：总消耗 − 静息 − 步数里已算；体重用 ${fmt1(bodyKg(today()).kg)} kg（${bodyKgText(bodyKg(today()))}）</div>
         ${numRow('椭圆机步频（步/分）', 'ellCadence')}
         ${numRow('默认步数', 'stepsDefault')}
         ${numRow('每周力量次数', 'strengthPerWeek')}

@@ -30,7 +30,8 @@ const MODELS = {
 
 // ════════ 表结构 ════════
 const TABLES = {
-  Log:         ['id', 'date', 'time', 'meal', 'name', 'kcal', 'protein', 'fat', 'carb', 'type', 'foodId', 'note', 'updatedAt', 'ratio'],
+  // ratio：有氧计入占 kcal 的 %；detail：有氧怎么算的（JSON：种类、时长、MET / 速度、体重、静息、步数…）
+  Log:         ['id', 'date', 'time', 'meal', 'name', 'kcal', 'protein', 'fat', 'carb', 'type', 'foodId', 'note', 'updatedAt', 'ratio', 'detail'],
   Foods:       ['id', 'name', 'category', 'serving', 'kcal', 'protein', 'fat', 'carb', 'uses', 'sort', 'updatedAt'],
   Categories:  ['id', 'name', 'sort'],
   Body:        ['id', 'date', 'weight', 'bodyfat', 'muscle', 'note', 'updatedAt'],
@@ -43,7 +44,7 @@ const TABLES = {
 const KEY_COL = { Settings: 'key', Steps: 'date' };   // 其余表用 id
 const WRITABLE = ['Log', 'Foods', 'Categories', 'Body', 'Settings', 'Steps'];
 const TEXT_COLS = ['id', 'date', 'time', 'meal', 'name', 'type', 'foodId', 'note', 'updatedAt', 'category', 'serving',
-                   'key', 'value', 'createdAt', 'status', 'model', 'text', 'result', 'error', 'watchFull', 'watchEnd', 'at', 'summary', 'raw'];
+                   'key', 'value', 'createdAt', 'status', 'model', 'text', 'result', 'error', 'watchFull', 'watchEnd', 'at', 'summary', 'raw', 'detail'];
 
 const AI_SYSTEM = [
   '你是专业营养师，根据用户的食物照片和/或文字描述，估算这一餐的热量和三大营养素。',
@@ -86,6 +87,47 @@ const LABEL_SCHEMA = {
     note: { type: 'string' }
   },
   required: ['ok', 'name', 'basis', 'basisAmount', 'basisUnit', 'packageAmount', 'packageCount', 'kcal', 'protein', 'fat', 'carb', 'note'],
+  additionalProperties: false
+};
+
+// 有氧：从手表截图 / 器械屏幕读数据、判断种类；热量由 App 按公式算（AI 不算最终热量）
+const CARDIO_SYSTEM = [
+  '你从运动截图（手表或手机的运动记录）或健身器械屏幕的照片里，读出这一次有氧运动的数据。热量由 App 按固定公式计算（总消耗 − 静息 − 步数里已算），你只负责读数和判断，不要自己算最终热量。',
+  '规则：',
+  '1. kind：椭圆机 / 交叉训练机（クロストレーナー）→ ell；跑步机（トレッドミル，走或跑，含爬坡）→ tread；户外或没说明器械的跑步 → run；拳击、踢拳、搏击类课程或练习 → box；其他（单车、划船、游泳、爬楼机、HIIT 等）→ other。',
+  '2. 只读屏幕上真实显示的数字，看不清或没有就填 0，不要猜：minutes（换算成分钟，49:47 → 49.8）、deviceKcal、speedKmh（mph × 1.609；只有配速时 60 ÷ 每公里分钟数）、inclinePct、distanceKm（英里 × 1.609）、avgHr、maxHr、watts、steps（这段运动里记到的步数）。器械屏幕上的平均速度优先于最高速度。',
+  '3. deviceKcal：这次运动的消耗（消費 / 消费 / 总消耗 / Total / Calories）。只有「活动 / Active / アクティブ」消耗时 kcalType = active；是总消耗或看不出时 total；没有消耗数字时 unknown、deviceKcal = 0。',
+  '4. met：屏幕显示平均 MET（METs）时照抄，metFrom = screen。屏幕没有 MET，也没有消耗 kcal、速度、距离可用时，按 2024 Adult Compendium of Physical Activities 估一个 MET（结合心率、功率和用户的描述），metFrom = estimate；其他情况 met = 0、metFrom = none。参考：椭圆机中等 5.0 / 高强度 9.0；拳击沙袋 5.8、手靶或对练 7.8、连续模拟回合 9.3；踢拳 7.3；跳绳 11.0；划船机 <100 W 5.0、100–149 W 7.5；爬楼机 9.3；HIIT 中等 7.0。',
+  '5. gait（只对跑步机 / 跑步）：走 walk、跑 run，看不出 unknown。',
+  '6. watchWorn：截图是手表 / 手机的运动记录 → yes；用户说没戴手表 → no；只有器械屏幕、看不出 → unknown。',
+  '7. name：简短中文名，如「椭圆机」「跑步机爬坡」「拳击课」「动感单车」。',
+  '8. ok：能读出（或用户写明了）时长，并且有消耗 kcal、MET、速度、距离中的至少一种，或能按描述估 MET 时为 true；不是运动记录、或连时长都不知道时为 false。',
+  '9. note：40 字以内，写需要用户核对的地方。屏幕上同时有 kcal/h（或 kcal 和时长）和 MET 时，算一下机器假设的体重（kcal/h ÷ MET），和用户体重差 3 kg 以上就写出来，如「机器按约 85 kg 计算，App 会按你的体重换算」。没有要说的就填空字符串。'
+].join('\n');
+const CARDIO_SCHEMA = {
+  type: 'object',
+  properties: {
+    ok: { type: 'boolean' },
+    kind: { type: 'string', enum: ['ell', 'tread', 'run', 'box', 'other'] },
+    name: { type: 'string' },
+    minutes: { type: 'number' },
+    deviceKcal: { type: 'number' },
+    kcalType: { type: 'string', enum: ['total', 'active', 'unknown'] },
+    met: { type: 'number' },
+    metFrom: { type: 'string', enum: ['screen', 'estimate', 'none'] },
+    speedKmh: { type: 'number' },
+    inclinePct: { type: 'number' },
+    gait: { type: 'string', enum: ['walk', 'run', 'unknown'] },
+    distanceKm: { type: 'number' },
+    avgHr: { type: 'number' },
+    maxHr: { type: 'number' },
+    watts: { type: 'number' },
+    steps: { type: 'number' },
+    watchWorn: { type: 'string', enum: ['yes', 'no', 'unknown'] },
+    note: { type: 'string' }
+  },
+  required: ['ok', 'kind', 'name', 'minutes', 'deviceKcal', 'kcalType', 'met', 'metFrom', 'speedKmh', 'inclinePct', 'gait',
+             'distanceKm', 'avgHr', 'maxHr', 'watts', 'steps', 'watchWorn', 'note'],
   additionalProperties: false
 };
 
@@ -184,6 +226,7 @@ function handle_(req) {
       case 'aiSubmit':  return aiSubmit_(req);
       case 'aiUsage':   return aiUsage_();
       case 'aiLabel':   return aiLabel_(req);
+      case 'aiCardio':  return aiCardio_(req);
       case 'steps':     return stepsInfo_(req.days);
       default:          return { ok: false, error: '未知操作：' + req.action };
     }
@@ -516,6 +559,60 @@ function aiLabel_(req) {
   return { ok: true, id: id, label: label, usage: { model: model, inputTokens: r.inputTokens, outputTokens: r.outputTokens, costUSD: cost } };
 }
 
+/** 有氧：运动截图 / 器械屏幕照片（和 / 或一句描述）→ 读出的数据。req: {id, image: base64 jpeg（可选）, text, model, state: App 发来的最新状态} */
+function aiCardio_(req) {
+  const id = String(req.id || '');
+  if (!/^AI-[a-z0-9]{4,12}$/i.test(id)) throw new Error('请求编号格式不对');
+  const text = String(req.text || '').slice(0, 500);
+  if (!text && !req.image) throw new Error('没有图片也没有描述');
+  const model = MODELS[req.model] ? req.model : DEFAULT_MODEL;
+  const key = apiKey_();
+  if (!key) throw new Error('还没有设置 Claude API Key（在 Code.gs 里填 CLAUDE_API_KEY 后重新部署）');
+  const prompt = cardioStateText_(req.state) + '\n\n' + (req.image ? '请读取照片里的这次运动。' : '没有照片，按用户的描述判断。') + (text ? '\n用户补充：' + text : '');
+  const log = { id: id, createdAt: new Date().toISOString(), model: model, text: '[有氧] ' + text, hasImage: req.image ? 'yes' : '' };
+  let r;
+  try {
+    r = callClaude_(key, model, prompt, req.image, CARDIO_SYSTEM, CARDIO_SCHEMA);
+  } catch (err) {
+    log.status = 'error'; log.error = String(err.message || err);
+    if (err.usage) { log.inputTokens = err.usage.input_tokens || 0; log.outputTokens = err.usage.output_tokens || 0; log.costUSD = costOf_(model, log.inputTokens, log.outputTokens); }
+    appendAI_(log);
+    throw err;
+  }
+  const cost = costOf_(model, r.inputTokens, r.outputTokens);
+  Object.assign(log, { status: 'done', result: r.text, inputTokens: r.inputTokens, outputTokens: r.outputTokens, costUSD: cost });
+  appendAI_(log);
+  let o = {};
+  try { const t = String(r.text).replace(/```(json)?/gi, ''); o = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); } catch (err) { o = { ok: false, note: '没能读出结果' }; }
+  const pick = (v, list, d) => (list.indexOf(v) >= 0 ? v : d);
+  const cardio = {
+    ok: !!o.ok, kind: pick(o.kind, ['ell', 'tread', 'run', 'box', 'other'], 'other'), name: String(o.name || '').trim().slice(0, 20),
+    minutes: toNum_(o.minutes), deviceKcal: toNum_(o.deviceKcal), kcalType: pick(o.kcalType, ['total', 'active', 'unknown'], 'unknown'),
+    met: toNum_(o.met), metFrom: pick(o.metFrom, ['screen', 'estimate', 'none'], 'none'),
+    speedKmh: toNum_(o.speedKmh), inclinePct: toNum_(o.inclinePct), gait: pick(o.gait, ['walk', 'run', 'unknown'], 'unknown'),
+    distanceKm: toNum_(o.distanceKm), avgHr: toNum_(o.avgHr), maxHr: toNum_(o.maxHr), watts: toNum_(o.watts), steps: toNum_(o.steps),
+    watchWorn: pick(o.watchWorn, ['yes', 'no', 'unknown'], 'unknown'), note: String(o.note || '').slice(0, 80)
+  };
+  return { ok: true, id: id, cardio: cardio, usage: { model: model, inputTokens: r.inputTokens, outputTokens: r.outputTokens, costUSD: cost } };
+}
+
+// App 发来的「最新状态」→ 给 AI 的一段说明（只取数字，防止塞进别的内容）
+function cardioStateText_(st) {
+  st = st && typeof st === 'object' ? st : {};
+  const n = v => { const x = Number(v); return isFinite(x) ? Math.round(x * 100) / 100 : 0; };
+  const d = v => (/^\d{4}-\d{2}-\d{2}/.test(String(v || '')) ? String(v).slice(0, 10) : '');
+  const lines = ['用户的最新状态（App 用这些数字按公式计算热量；你用来判断强度、核对机器设定的体重）：'];
+  if (n(st.kg)) lines.push('- 体重：' + (st.kgSrc === '7d' ? '近 7 天平均 ' + n(st.kg) + ' kg（' + n(st.kgN) + ' 次称重）' : n(st.kg) + ' kg') +
+    (n(st.lastKg) && d(st.lastKgDate) ? '；最近一次 ' + n(st.lastKg) + ' kg（' + d(st.lastKgDate) + '）' : ''));
+  if (n(st.bf)) lines.push('- 体脂率：' + n(st.bf) + '%' + (d(st.bfDate) ? '（' + d(st.bfDate) + '）' : ''));
+  if (st.trend !== null && st.trend !== undefined && st.trend !== '' && isFinite(Number(st.trend))) lines.push('- 近 2 周体重趋势：每周 ' + (Number(st.trend) > 0 ? '+' : '') + n(st.trend) + ' kg（在减脂）');
+  if (n(st.bmr)) lines.push('- 基础代谢 ' + n(st.bmr) + ' kcal/天，日常系数 ' + n(st.restFactor) + '，每千步 ' + n(st.stepKcal) + ' kcal');
+  if (n(st.usualSteps)) lines.push('- 平时每天约 ' + n(st.usualSteps) + ' 步；在椭圆机上手表大约记 ' + n(st.ellCadence) + ' 步/分');
+  if (d(st.date)) lines.push('- 运动日期：' + d(st.date));
+  lines.push('- 住在日本，健身房器械多是日文界面（消費カロリー、経過時間、傾斜、速度、平均METs 等）');
+  return lines.join('\n');
+}
+
 function appendAI_(row) {
   try {
     withLock_(() => {
@@ -629,6 +726,13 @@ function setup() {
 function testClaude() {
   ownerOnly_();
   const r = aiSubmit_({ id: 'AI-test01', text: '一个金枪鱼蛋黄酱饭团和一杯 200ml 无糖豆浆' });
+  Logger.log(JSON.stringify(r, null, 2));
+}
+
+/** 在编辑器里运行：测试有氧识别（文字，会花约 0.001 美元） */
+function testCardio() {
+  ownerOnly_();
+  const r = aiCardio_({ id: 'AI-test02', text: '拳击课 60 分钟，没戴手表，手靶和沙袋', state: { kg: 77, kgSrc: '7d', kgN: 5, bmr: 1650, restFactor: 1.15, stepKcal: 30, usualSteps: 8000, ellCadence: 20 } });
   Logger.log(JSON.stringify(r, null, 2));
 }
 
