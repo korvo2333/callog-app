@@ -372,6 +372,8 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .why td small { display: block; font-size: 11px; color: var(--muted); }
 .why td.num { text-align: right; font-family: var(--font-num); color: var(--text); white-space: nowrap; }
 .why tr.sum td { border-top: 1px solid var(--border); font-weight: 700; color: var(--text); }
+.st-why { font-size: 14px; }
+.st-why td.st-at { width: 1%; white-space: nowrap; padding-left: 12px; font-size: 12px; font-weight: 400; color: var(--muted); text-align: right; }
 /* 设置：强度三档对比、计算参数、手表步数 */
 .int-tbl { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px; }
 .int-tbl th, .int-tbl td { padding: 6px 4px; text-align: center; }
@@ -522,6 +524,9 @@ body:has(#sheet-bg.open .sheet.tall) .toast { bottom: calc(86px + env(safe-area-
 .cd-lv .chip .num { color: var(--muted); font-size: 12px; }
 .cd-lv .chip.on .num, .cd-lv .chip.on small { color: inherit; opacity: .8; }   /* 有的主题选中是实心底色：跟着选中的字色走 */
 .cd-set-hint { margin: 2px 0 8px; }
+.st-hint { margin: 8px 0; padding: 8px 10px; border-radius: var(--r-ctl); line-height: 1.55; }
+.st-hint.warn { color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, transparent); }
+.st-hint.info { color: var(--text2); background: color-mix(in srgb, var(--warn) 14%, transparent); }
 /* 有氧拍照识别 */
 .cd-ai { margin: 0 0 12px; }
 .cd-ai-tx[hidden] { display: none; }

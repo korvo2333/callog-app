@@ -15,7 +15,7 @@
 | `src/` | 页面源码：`index.src.html` + `*.css` + `js/*.js` |
 | `build.py` | 把 `src/` 拼成 `dist/callog.html` |
 | `tools/` | 主题素材生成脚本（`*.src.css` → `src/*.css`）、App 图标生成脚本 |
-| `test/` | 本地模拟后端（`server.js`）和端到端测试（`e2e.py`、`today_cards.py`、`swipe.py`、`cardio.py`） |
+| `test/` | 本地模拟后端（`server.js`）和端到端测试（`e2e.py`、`today_cards.py`、`swipe.py`、`cardio.py`、`steps.py`） |
 | `android-app/` | 安卓外壳（Capacitor） |
 | `.github/workflows/apk.yml` | 推送到 main 后自动编译 APK，发布在 Releases |
 
@@ -41,3 +41,7 @@ APK 的签名文件加密后放在 `tools/callog.keystore.enc`，解密密码只
 `src/js/02b_cardio.js`：计入 = 这段运动的总消耗 − 这段时间的静息消耗（基础代谢 × 日常系数）− 步数里已经算过的部分。总消耗按能拿到的最可靠数据：屏幕上的平均 MET × 体重 × 小时 → 跑步机速度 / 坡度、跑步距离用 ACSM 代谢公式 → 手表 / 器械 kcal × 90%（「活动消耗」先加回基础代谢）→ 2024 Adult Compendium 的 MET（拳击课按强度）。体重用近 7 天平均。没填时长时按设置里的比例。每条记录的计算过程存在 Log 表的 `detail` 列。
 
 拍照识别（`aiCardio`）：AI 只读截图 / 器械屏幕上的数字、判断种类，热量由 App 按上面的公式算。更新 `Code.gs` 后要重新部署才有这个接口。
+
+## 手表步数
+
+HC Webhook 的步数分辨率选「完整」。三星健康把一天的步数写成 0:00–24:00 的一条记录，白天不停更新；「每日」分辨率是 Health Connect 从 0:00 到同步那一刻的合计，跨过结束时间的记录只按已过时间的比例算，所以白天只有一部分（中午约一半）。「完整」把每条记录原样推来，`Code.gs` 按记录 id 存进 `StepRecs`，按「写入的 App + 设备」分组加总，取步数最多的那一组（不同来源相加会重复）。

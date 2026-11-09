@@ -304,8 +304,8 @@ function renderActivity() {
   const s = cfg(), p = info.parts, st = p.steps, isT = d === today();
   const last = STEPS.last || LOCAL.stepsLast;
   let sub;
-  if (st.src === 'manual') sub = '手动';
-  else if (isT && last && last.warn === 'daily') sub = '<span class="act-warn">分辨率要选「每日」</span>';
+  if (st.src === 'manual') sub = '手动补';
+  else if (isT && hcHint(last)) sub = `<span class="act-warn">${hcHint(last).short}</span>`;
   else if (st.src === 'watch') sub = isT && last && last.at ? agoText(last.at) : '手表';
   else if (st.src === 'wait') sub = '未同步';
   else sub = `按平时 ${fmt(st.usual)}`;
@@ -350,17 +350,33 @@ function toggleStrength() {
   if (!ex) toast(`力量 +${fmt(num(cfg().strengthKcal))}`);
 }
 
+// 手表同步的数据到几点：整天的写「整天」；「完整」模式写「三星健康 HH:MM 更新」（写入的 App 最后一次更新这天步数的时间）；「每日」写「截至 HH:MM」
+function stepsUpTo(row) {
+  if (!row || !row.watchEnd) return '';
+  const e = new Date(row.watchEnd);
+  if (isNaN(e)) return '';
+  const hm = `${pad2(e.getHours())}:${pad2(e.getMinutes())}`, src = hcSrcName(row.watchSrc);
+  if (row.watchFull === 'yes' && hm === '00:00') return src ? `${src} · 整天` : '整天';
+  if (row.watchSrc && row.watchSrc !== 'daily') return `${src ? src + ' ' : ''}${hm} 更新`;
+  return `截至 ${hm}`;
+}
 function openSteps() {
   const d = VIEW.date, st = stepsFor(d), a = stepsActual(d);
-  const row = (DB.steps || []).find(r => r.date === d);
-  const watch = row && row.watch !== '' ? +row.watch : null;
+  const row = (DB.steps || []).find(r => r.date === d) || null;
+  const watch = a ? a.watch : null, manual = a ? a.manual : null;
   const last = STEPS.last || LOCAL.stepsLast;
+  const upTo = stepsUpTo(row);
   openSheet('步数', `
-    ${last && last.warn === 'daily' ? `<div class="hint" style="margin:0 0 8px;color:var(--warn)">HC Webhook → 步数分辨率 → 每日</div>` : ''}
-    <div class="muted">手表 ${watch !== null ? `<b class="num">${fmt(watch)}</b>` : '—'}${last && last.at ? ` · ${agoText(last.at)}` : ''} · 平时 ${fmt(st.usual)}</div>
-    <input class="in" id="st-n" type="number" inputmode="numeric" placeholder="手动" value="${a && a.src === 'manual' ? a.n : ''}" style="margin-top:10px">
+    ${hcHint(last) ? `<div class="hint st-hint ${hcHint(last).level}">${hcHint(last).long}</div>` : ''}
+    <table class="why st-why">
+      <tr><td>手表同步</td><td class="num">${watch !== null ? fmt(watch) : '—'}</td><td class="st-at">${watch !== null ? upTo : ''}</td></tr>
+      ${manual !== null ? `<tr><td>你填的</td><td class="num">${fmt(manual)}</td><td class="st-at">${manual > (watch || 0) ? '' : '比同步的少，不用'}</td></tr>` : ''}
+      <tr class="sum"><td>现在用</td><td class="num">${a ? fmt(a.n) : fmt(st.n)}</td><td class="st-at">${a ? (a.src === 'manual' ? '你填的' : '同步的') : st.src === 'wait' ? '还没同步' : '平时'}</td></tr>
+    </table>
+    <input class="in" id="st-n" type="number" inputmode="numeric" placeholder="填手表上现在的步数" value="${manual !== null ? manual : ''}" style="margin-top:12px" aria-label="手动步数">
+    <div class="hint">三星健康隔一段时间才把步数写进 Health Connect，同步到的会比手表上的稍晚一点。填手表上现在的数可以先补上；之后同步超过它，会自动改用同步的。</div>
     <div class="actions">
-      ${a && a.src === 'manual' ? `<button class="btn" style="flex:0 0 auto" onclick="saveSteps(true)">清空</button>` : ''}
+      ${manual !== null ? `<button class="btn" style="flex:0 0 auto" onclick="saveSteps(true)">清空</button>` : ''}
       ${connected() ? `<button class="btn" style="flex:0 0 auto" onclick="pollSteps(true).then(()=>{closeSheet();toast('已刷新')})">刷新</button>` : ''}
       <button class="btn pri" onclick="saveSteps()">保存</button>
     </div>`);
@@ -370,5 +386,7 @@ function saveSteps(clear) {
   if (!clear && (v === '' || !isFinite(+v) || +v < 0 || +v > 100000)) { toast('步数不对'); return; }
   setStepsManual(VIEW.date, clear ? null : +v);
   closeSheet(); renderToday();
+  const a = stepsActual(VIEW.date);
+  if (!clear && a && a.src === 'watch' && a.watch > +v) toast(`同步的 ${fmt(a.watch)} 比你填的多，用同步的`);
 }
 // 有氧表单：见 03f_cardio.js

@@ -10,7 +10,8 @@
  * 安卓 App（可选）：装好 APK 后，第一次打开时填这个网页应用的网址（…/exec）和密码，读写走下面的 doPost。
  *
  * 手表步数（可选）：手机装 HC Webhook，网址填「App 设置 → 手表步数」里显示的那一串（就是本网页应用的网址 + ?token=你的密码），
- *      步数分辨率选「每日」(Daily)。更新这个文件后要「管理部署 → 编辑 → 版本：新版本 → 部署」才会生效。
+ *      步数分辨率选「完整」(Full)（「每日」也能用，但白天只算到一部分，见下面 ingestHC_ 的说明）。
+ *      更新这个文件后要「管理部署 → 编辑 → 版本：新版本 → 部署」才会生效。
  */
 
 // ════════ 只需要改这两行 ════════
@@ -37,14 +38,17 @@ const TABLES = {
   Body:        ['id', 'date', 'weight', 'bodyfat', 'muscle', 'note', 'updatedAt'],
   Settings:    ['key', 'value'],
   AI_Requests: ['id', 'createdAt', 'status', 'model', 'text', 'hasImage', 'result', 'inputTokens', 'outputTokens', 'costUSD', 'error'],
-  // 手表步数：每天一行。watch* 是 HC Webhook 推过来的，manual 是你在 App 里手动改的（有手动值时以手动为准）
-  Steps:       ['date', 'watch', 'watchFull', 'watchEnd', 'manual', 'updatedAt'],
+  // 手表步数：每天一行。watch* 是 HC Webhook 推过来的（watchSrc：用的是哪个 App 写的步数），manual 是你在 App 里手动填的
+  Steps:       ['date', 'watch', 'watchFull', 'watchEnd', 'manual', 'updatedAt', 'watchSrc'],
+  // HC Webhook「完整」分辨率推来的每条 Health Connect 步数记录（按记录 id 存；只留最近 35 天）
+  StepRecs:    ['id', 'date', 'origin', 'device', 'start', 'end', 'count', 'modified', 'updatedAt'],
   HC_Log:      ['at', 'size', 'summary', 'raw']
 };
 const KEY_COL = { Settings: 'key', Steps: 'date' };   // 其余表用 id
 const WRITABLE = ['Log', 'Foods', 'Categories', 'Body', 'Settings', 'Steps'];
 const TEXT_COLS = ['id', 'date', 'time', 'meal', 'name', 'type', 'foodId', 'note', 'updatedAt', 'category', 'serving',
-                   'key', 'value', 'createdAt', 'status', 'model', 'text', 'result', 'error', 'watchFull', 'watchEnd', 'at', 'summary', 'raw', 'detail'];
+                   'key', 'value', 'createdAt', 'status', 'model', 'text', 'result', 'error', 'watchFull', 'watchEnd', 'at', 'summary', 'raw', 'detail',
+                   'watchSrc', 'origin', 'device', 'start', 'end', 'modified'];
 
 const AI_SYSTEM = [
   '你是专业营养师，根据用户的食物照片和/或文字描述，估算这一餐的热量和三大营养素。',
@@ -410,17 +414,32 @@ function rememberTz_(tz) {
 }
 
 /**
- * HC Webhook 的步数（步数分辨率 =「每日」Daily）：每个本地日一条 {count, start_time, end_time}，count 是这一天到 end_time 为止的累计步数。
- * start_time 正好是当天 0:00 的是「整天」的累计；最早那条可能只覆盖半天（start_time 不是 0:00），只当下限用。
- * 选了「完整」或「N 分钟」时推过来的是一小段一小段的步数，不是每天的累计（而且手机和手表的会重复），这种不写入，只提示改设置。
+ * HC Webhook 推来的步数。两种分辨率：
+ *
+ * 「完整」(Full，推荐)：每条 Health Connect 记录原样推来，带 metadata（id、写入的 App、设备、修改时间）。
+ *   三星健康把一天的步数写成「0:00 到 24:00」的一条记录，白天不停更新这一条的数。这里按 id 存下每条记录，
+ *   自己按天加总，所以白天也是三星健康上的数。见 ingestHCRecords_。
+ *
+ * 「每日」(Daily)：每个本地日一条 {count, start_time, end_time}，是 Health Connect 从 0:00 到同步那一刻的合计。
+ *   问题：Health Connect 合计时，跨过查询结束时间的记录只按落在范围里的时间比例算。三星健康那条记录要到 24:00 才结束，
+ *   所以白天同步到的只有「已过时间 / 24 小时」那么多（中午约一半），要到第二天整天查询才是全数。
+ *   start_time 正好是当天 0:00 的是「整天」的累计；最早那条可能只覆盖半天（start_time 不是 0:00），只当下限用。
+ *
+ * 「N 分钟」：一小段一小段的合计，没有记录 id，没法去重，不写入，只提示改成「完整」。
  */
 function ingestHC_(body, raw) {
   const tz = tz_();
   const now = new Date();
+  const list = Array.isArray(body && body.steps) ? body.steps : [];
+  const dels = (Array.isArray(body && body.deleted) ? body.deleted : [])
+    .filter(d => d && d.type === 'steps' && d.id).map(d => String(d.id));
+  const withId = list.filter(s => s && s.metadata && s.metadata.id);
+  if (withId.length || (dels.length && !list.length)) return ingestHCRecords_(withId, dels, raw, tz, now);
+
   const ts = new Date(body && body.timestamp);
   const ref = isNaN(ts) ? now : ts;   // 手机发出这次同步的时间
   const recs = [];
-  (Array.isArray(body && body.steps) ? body.steps : []).forEach(s => {
+  list.forEach(s => {
     const count = Math.round(Number(s && s.count));
     const start = new Date(s && s.start_time), end = new Date(s && s.end_time);
     if (!isFinite(count) || count < 0 || isNaN(start) || isNaN(end)) return;
@@ -450,24 +469,110 @@ function ingestHC_(body, raw) {
     readTable_('Steps').forEach(r => { have[r.date] = r; });
     dates.forEach(date => {
       const nw = byDate[date], old = have[date] || {};
+      if (old.watchSrc && old.watchSrc !== 'daily') return;   // 这天已经有「完整」模式按记录算出的数，以它为准
       const oldFull = old.watchFull === 'yes', oldEnd = old.watchEnd ? new Date(old.watchEnd) : null, oldCount = Number(old.watch) || 0;
       let take = false;
       if (nw.full) take = !oldFull || !oldEnd || nw.end > oldEnd || (+nw.end === +oldEnd && nw.count !== oldCount);   // 整天累计：取时间更晚的那次
       else if (!oldFull) take = nw.count > oldCount;                                                                 // 只有半天：取较大的
       if (!take) return;
       ops.push({ op: 'upsert', table: 'Steps', row: {
-        date: date, watch: nw.count, watchFull: nw.full ? 'yes' : '', watchEnd: nw.end.toISOString(), updatedAt: now.toISOString()
+        date: date, watch: nw.count, watchFull: nw.full ? 'yes' : '', watchEnd: nw.end.toISOString(), watchSrc: 'daily', updatedAt: now.toISOString()
       } });
     });
     if (ops.length) batch_(ops);
   }
 
   const summary = !recs.length ? '没有步数'
-    : ok ? dates.map(d => d.slice(5) + ' ' + byDate[d].count + (byDate[d].full ? '' : '*')).join('，')
-    : '没写入：不是每日累计（HC Webhook 步数分辨率要选「每日」）';
+    : ok ? dates.map(d => d.slice(5) + ' ' + byDate[d].count + (byDate[d].full ? '' : '*')).join('，') + '（每日）'
+    : '没写入：按 N 分钟分段的步数（HC Webhook 步数分辨率要选「完整」）';
   logHC_(now, raw, summary);
-  PropertiesService.getScriptProperties().setProperty('HC_LAST', JSON.stringify({ at: now.toISOString(), summary: summary, warn: recs.length && !ok ? 'daily' : '' }));
-  return { steps: recs.length, updated: ops.length, daily: ok };
+  PropertiesService.getScriptProperties().setProperty('HC_LAST', JSON.stringify({
+    at: now.toISOString(), summary: summary, mode: ok ? 'daily' : 'bucket', warn: recs.length && !ok ? 'bucket' : '' }));
+  return { steps: recs.length, updated: ops.length, daily: ok, mode: ok ? 'daily' : 'bucket' };
+}
+
+// 「完整」分辨率：按记录 id 存（编辑过的记录同 id 覆盖，deleted 里的删掉），再按天重算这天的步数
+function ingestHCRecords_(list, dels, raw, tz, now) {
+  const day = d => Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+  const byId = {};
+  readTable_('StepRecs').forEach(r => { byId[String(r.id)] = r; });
+  const touched = {};
+  let n = 0;
+  list.forEach(s => {
+    const count = Math.round(Number(s.count));
+    const start = new Date(s.start_time), end = new Date(s.end_time);
+    if (!isFinite(count) || count < 0 || isNaN(start) || isNaN(end)) return;
+    const m = s.metadata || {}, dv = m.device || {}, id = String(m.id);
+    const old = byId[id], date = day(start), mod = new Date(m.last_modified_time);
+    if (old && old.date !== date) touched[old.date] = true;
+    byId[id] = { id: id, date: date, origin: String(m.data_origin || ''), device: String(dv.model || dv.manufacturer || dv.type || ''),
+      start: start.toISOString(), end: end.toISOString(), count: count, modified: isNaN(mod) ? '' : mod.toISOString(), updatedAt: now.toISOString() };
+    touched[date] = true; n++;
+  });
+  dels.forEach(id => { if (byId[id]) { touched[byId[id].date] = true; delete byId[id]; } });
+
+  const all = Object.keys(byId).map(k => byId[k]);
+  const onDay = {};
+  all.forEach(r => { (onDay[r.date] = onDay[r.date] || []).push(r); });
+  const t = day(now);
+  const ops = [];
+  Object.keys(touched).sort().forEach(date => {
+    const best = stepsOfDay_(onDay[date] || []);
+    const end = date < t ? Utilities.parseDate(nextDay_(date), tz, 'yyyy-MM-dd')   // 过完的日子：整天
+      : (best.modified ? new Date(best.modified) : now);                            // 今天：写入的 App 最后一次更新的时间
+    ops.push({ op: 'upsert', table: 'Steps', row: { date: date, watch: best.count, watchFull: 'yes', watchEnd: (end > now ? now : end).toISOString(),
+      watchSrc: best.origin || 'records', updatedAt: now.toISOString() } });
+    touched[date] = best;
+  });
+
+  // 表不越变越大：只留 35 天；3 天前的日子只留算出步数的那一组（其他来源的零碎记录不再需要）
+  const keepFrom = addDay_(t, -35), slimBefore = addDay_(t, -2);
+  const winner = {};
+  Object.keys(onDay).forEach(date => { if (date < slimBefore) winner[date] = stepsOfDay_(onDay[date]).key; });
+  const kept = all.filter(r => r.date >= keepFrom && (r.date >= slimBefore || groupKey_(r) === winner[r.date]))
+    .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+  writeTable_('StepRecs', kept);
+  if (ops.length) batch_(ops);
+
+  const dates = Object.keys(touched).sort();
+  const summary = (dates.length ? dates.map(d => d.slice(5) + ' ' + touched[d].count + ' ' + shortOrigin_(touched[d].origin)).join('，') : '没有步数')
+    + '（完整，' + n + ' 条' + (dels.length ? '，删 ' + dels.length + ' 条' : '') + '）';
+  logHC_(now, raw, summary);
+  PropertiesService.getScriptProperties().setProperty('HC_LAST', JSON.stringify({ at: now.toISOString(), summary: summary, mode: 'records', warn: '' }));
+  return { steps: n, updated: ops.length, daily: false, mode: 'records' };
+}
+
+// 一天的步数：按「写入的 App + 设备」分组。同一组里时间重叠的记录是同一段步数（比如整天那条和它的旧版本），取大的；
+// 不重叠的相加。不同组记的是同一批步数（手机、手表、三星健康的合并数），相加会重复，所以取步数最多的那一组
+function stepsOfDay_(rows) {
+  const groups = {};
+  rows.forEach(r => { const k = groupKey_(r); (groups[k] = groups[k] || []).push(r); });
+  let best = { count: 0, key: '', origin: '', modified: '' };
+  Object.keys(groups).forEach(k => {
+    const g = groups[k].slice().sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+    let total = 0, cEnd = '', cMax = 0, mod = '';
+    g.forEach(r => {
+      const c = Number(r.count) || 0;
+      if (cEnd && r.start < cEnd) { cMax = Math.max(cMax, c); if (r.end > cEnd) cEnd = r.end; }
+      else { total += cMax; cMax = c; cEnd = r.end; }
+      if (r.modified > mod) mod = r.modified;
+    });
+    total += cMax;
+    if (total > best.count) best = { count: total, key: k, origin: g[0].origin, modified: mod };
+  });
+  return best;
+}
+const groupKey_ = r => String(r.origin) + '|' + String(r.device);
+const nextDay_ = d => addDay_(d, 1);
+function addDay_(d, n) { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); }
+function shortOrigin_(o) {
+  return { 'com.sec.android.app.shealth': '三星健康', 'com.google.android.apps.fitness': 'Google Fit', 'com.google.android.apps.healthdata': '手机', android: '手机' }[o] || o;
+}
+// 整张表重写（StepRecs 每次都整体读写，比一行一行删快）
+function writeTable_(name, rows) {
+  const sh = sheet_(name), heads = headers_(sh), last = sh.getLastRow();
+  if (last > 1) sh.getRange(2, 1, last - 1, heads.length).clearContent();
+  if (rows.length) sh.getRange(2, 1, rows.length, heads.length).setValues(rows.map(r => heads.map(h => (r[h] === undefined || r[h] === null ? '' : r[h]))));
 }
 
 function logHC_(now, raw, summary) {

@@ -135,13 +135,13 @@ with sync_playwright() as p:
     r1 = hook('abc', {'timestamp': iso(nowj), 'app_version': 't', 'steps': hist + [{'count': 12500, 'start_time': iso(d0), 'end_time': iso(nowj)}]})
     r2 = hook('abc', {'steps': [{'count': 12500, 'start_time': iso(d0), 'end_time': iso(nowj)}]})
     check(r1.get('updated') == 4 and r2.get('updated') == 0, f'webhook stores 4 days, duplicate ignored {r1} {r2}')
-    # 不是每日累计（分辨率选了「完整」或「N 分钟」）：不写入，App 提示改设置
+    # 按 N 分钟分段、又没有记录 id（分辨率选了「N 分钟」）：不写入，App 提示改成「完整」
     rb = hook('abc', {'timestamp': iso(nowj), 'steps': [{'count': 78, 'start_time': iso(d0 - _dt.timedelta(minutes=15)), 'end_time': iso(d0)},
                                                        {'count': 7, 'start_time': iso(nowj - _dt.timedelta(minutes=20)), 'end_time': iso(nowj - _dt.timedelta(minutes=5))}]})
-    check(rb.get('updated') == 0 and rb.get('daily') is False, f'non-daily payload not written {rb}')
+    check(rb.get('updated') == 0 and rb.get('mode') == 'bucket', f'N-minute payload not written {rb}')
     pg.evaluate("pollSteps(true)")
-    pg.wait_for_function("STEPS.last && STEPS.last.warn === 'daily' && dayInfo(today()).parts.steps.src === 'watch'", timeout=8000)
-    check('每日' in pg.inner_text('.act-steps') and pg.evaluate("stepsFor(today()).n") == 12500, 'non-daily → warning shown, steps unchanged')
+    pg.wait_for_function("STEPS.last && STEPS.last.warn === 'bucket' && dayInfo(today()).parts.steps.src === 'watch'", timeout=8000)
+    check('完整' in pg.inner_text('.act-steps') and pg.evaluate("stepsFor(today()).n") == 12500, 'N-minute → warning shown, steps unchanged')
     # 手动选日期同步时今天的结束时间在将来：按现在算，之后的正常同步还能更新
     rf = hook('abc', {'steps': [{'count': 12500, 'start_time': iso(d0), 'end_time': iso(d0 + _dt.timedelta(days=1))}]})
     rn = hook('abc', {'steps': [{'count': 12500, 'start_time': iso(d0), 'end_time': iso(_dt.datetime.now(JST))}]})
@@ -172,10 +172,21 @@ with sync_playwright() as p:
       DB.steps = [mk(1, 21795)]; const c = stepsFor(t);
       DB.steps = bak; return [a, b, c.src, c.n]; })()''')
     check(u == [7000, 9000, 'wait', 0], 'usual needs ≥3 full days, median ignores outlier; today not synced yet → 0: ' + str(u))
-    # 手动改步数优先
-    pg.click('.act-steps'); pg.fill('#st-n', '3000'); pg.click('#sheet-body .btn.pri'); pg.wait_for_timeout(200)
-    check(pg.evaluate("stepsFor(today())") ['src'] == 'manual', 'manual steps override watch')
-    pg.click('.act-steps'); pg.click('#sheet-body .btn >> text=清空'); pg.wait_for_timeout(200)
+    # 手动填的和手表同步的取大的（同步的会落后手表；手动填的是那一刻的数）
+    pg.click('.act-steps'); pg.fill('#st-n', '15000'); pg.click('#sheet-body .btn.pri'); pg.wait_for_timeout(200)
+    st = pg.evaluate("stepsFor(today())")
+    check(st['src'] == 'manual' and st['n'] == 15000 and '手动补' in pg.inner_text('.act-steps'), 'manual above the synced number fills the gap')
+    pg.click('.act-steps'); pg.wait_for_timeout(300)
+    t = pg.inner_text('#sheet-body .st-why')
+    check('12,500' in t and '15,000' in t and '你填的' in t, 'steps sheet shows synced, manual and the one in use')
+    pg.fill('#st-n', '3000'); pg.click('#sheet-body .btn.pri'); pg.wait_for_timeout(200)
+    st = pg.evaluate("stepsFor(today())")
+    check(st['src'] == 'watch' and st['n'] == 12500 and '同步的 12,500 比你填的多' in pg.inner_text('#toast'), 'manual below the synced number is ignored (sync keeps counting up)')
+    pg.evaluate("(() => { const r = DB.steps.find(x => x.date === today()); r.watch = '16000'; renderToday(); })()")
+    pg.click('.act-steps'); pg.wait_for_timeout(300)
+    check(pg.evaluate("stepsFor(today()).n") == 16000 and '比同步的少，不用' in pg.inner_text('#sheet-body .st-why'), 'sync passing a manual number takes over')
+    pg.evaluate("(() => { const r = DB.steps.find(x => x.date === today()); r.watch = '12500'; })()")
+    pg.click('#sheet-body .btn >> text=清空'); pg.wait_for_timeout(200)
     check(pg.evaluate("stepsFor(today())")['n'] == 12500, 'clear manual → back to watch')
     # 有氧：选种类（椭圆机按时长精确算，没填时长 20% / 跑步 50% / 其他 70%）+ 手表数字 → 自动算计入多少
     check('有氧' not in pg.inner_text('.c-more') and '拍成分表' in pg.inner_text('.c-more'), 'compose card: no duplicate cardio link, has label scan')

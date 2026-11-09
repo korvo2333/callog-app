@@ -44,6 +44,7 @@ class Range {
     });
     return this;
   }
+  clearContent() { for (let i = 0; i < this.nr; i++) { const row = this.sh.data[this.r - 1 + i]; if (row) for (let j = 0; j < this.nc; j++) row[this.c - 1 + j] = ''; } return this; }
   setFontWeight() { return this; }
   setNumberFormat(f) { if (f === '@') this.sh.formats[this.c] = '@'; return this; }
 }
@@ -75,6 +76,12 @@ const ctx = {
       new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
         .formatToParts(d).forEach(x => { p[x.type] = x.value; });
       return f.replace('yyyy', p.year).replace('MM', p.month).replace('dd', p.day).replace('HH', p.hour).replace('mm', p.minute);
+    },
+    parseDate: (str, tz, f) => {   // 只用到 'yyyy-MM-dd'：那个时区的当天 0:00
+      const [y, m, d] = String(str).split('-').map(Number), guess = Date.UTC(y, m - 1, d), p = {};
+      new Intl.DateTimeFormat('en-US', { timeZone: tz || 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+        .formatToParts(new Date(guess)).forEach(x => { p[x.type] = x.value; });
+      return new Date(guess - (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - guess));
     },
     base64Decode: s => Buffer.from(s, 'base64'),
     newBlob: (bytes, type, name) => ({ bytes, type, name })

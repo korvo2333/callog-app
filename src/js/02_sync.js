@@ -32,7 +32,7 @@ function setStepsManual(date, n) {
   const v = n === null || n === '' || !isFinite(+n) ? '' : Math.max(0, Math.round(+n));
   const i = DB.steps.findIndex(r => r.date === date);
   const row = { date, manual: v, updatedAt: new Date().toISOString() };
-  if (i >= 0) DB.steps[i] = Object.assign({}, DB.steps[i], row); else DB.steps.push(Object.assign({ watch: '', watchFull: '', watchEnd: '' }, row));
+  if (i >= 0) DB.steps[i] = Object.assign({}, DB.steps[i], row); else DB.steps.push(Object.assign({ watch: '', watchFull: '', watchEnd: '', watchSrc: '' }, row));
   saveDB();
   queue({ op: 'upsert', table: 'Steps', row });
 }
@@ -191,7 +191,7 @@ function fromServer(data) {
 function stepsFromServer(rows) {
   const s = v => (v === null || v === undefined) ? '' : String(v);
   return (rows || []).filter(r => r.date).map(r => ({
-    date: s(r.date).slice(0, 10), watch: s(r.watch), watchFull: s(r.watchFull), watchEnd: s(r.watchEnd), manual: s(r.manual), updatedAt: s(r.updatedAt)
+    date: s(r.date).slice(0, 10), watch: s(r.watch), watchFull: s(r.watchFull), watchEnd: s(r.watchEnd), watchSrc: s(r.watchSrc), manual: s(r.manual), updatedAt: s(r.updatedAt)
   }));
 }
 
@@ -269,12 +269,18 @@ const formulaOn = date => { const f = cfg().formulaFrom; return !!f && date >= f
 const DEFICITS = [{ v: 400, name: '温和' }, { v: 550, name: '标准' }, { v: 700, name: '激进' }];
 const deficitOf = s => num((s || cfg()).deficit);
 
+// 这天的实际步数。手表同步的和手动填的都只会比真实的少：
+//   同步的：三星健康隔一段时间才把步数写进 Health Connect；HC Webhook 用「每日」分辨率时，白天还只算到已过时间的比例（见 Code.gs ingestHC_）
+//   手动填的：填的那一刻手表上的数，之后还会继续走
+// 所以取两个里大的。以前是「有手动就只用手动」，填过之后同步到更多也不用，一天就被锁在偏低的数上
 function stepsActual(date) {
   const r = (DB.steps || []).find(x => x.date === date);
   if (!r) return null;
-  if (r.manual !== '' && r.manual !== null && r.manual !== undefined && isFinite(+r.manual)) return { n: +r.manual, src: 'manual' };
-  if (r.watch !== '' && r.watch !== null && r.watch !== undefined && isFinite(+r.watch)) return { n: +r.watch, src: 'watch', full: r.watchFull === 'yes' };
-  return null;
+  const ok = v => v !== '' && v !== null && v !== undefined && isFinite(+v);
+  const w = ok(r.watch) ? +r.watch : null, m = ok(r.manual) ? +r.manual : null;
+  if (w === null && m === null) return null;
+  if (m !== null && (w === null || m > w)) return { n: m, src: 'manual', watch: w, manual: m };
+  return { n: w, src: 'watch', full: r.watchFull === 'yes', watch: w, manual: m, end: r.watchEnd || '' };
 }
 // 平时步数：这天之前 14 天里（不含今天）完整的日子（手动填的或手表整天的）取中位数，最多 7 天；不到 3 天就用设置里的默认步数
 // 用中位数：偶尔一天走特别多（或第一次同步只拿到半天）不会把「平时」带偏
@@ -291,6 +297,17 @@ function stepsAvg(date) {
   const m = vals.length >> 1;
   return vals.length % 2 ? vals[m] : Math.round((vals[m - 1] + vals[m]) / 2);
 }
+// HC Webhook 上次推送的状态 → 提示（level：warn 没写入 / info 写入了但白天偏少）
+//   bucket：选了「N 分钟」，没写入；daily：旧版后台的「不是每日累计」；mode daily：「每日」分辨率，白天只算到一部分
+function hcHint(last) {
+  if (!last) return null;
+  if (last.warn === 'bucket') return { level: 'warn', short: '分辨率要选「完整」', long: 'HC Webhook 推来的是按 N 分钟分段的步数，没法去重，没写入。HC Webhook → 步数 → 分辨率改成「完整」。' };
+  if (last.warn === 'daily') return { level: 'warn', short: '后台是旧版', long: '后台还是旧版 Code.gs：换成新的、发布新版本后，把 HC Webhook 的步数分辨率改成「完整」。' };
+  if (last.mode === 'daily') return { level: 'info', short: '改「完整」才准', long: '现在是「每日」分辨率：三星健康把一天的步数写成 0:00–24:00 的一条，Health Connect 白天只按已过的时间算这条（中午约一半），过了半夜才是全数。HC Webhook → 步数 → 分辨率改成「完整」就准了。' };
+  return null;
+}
+const HC_SRC = { 'com.sec.android.app.shealth': '三星健康', 'com.google.android.apps.fitness': 'Google Fit', 'com.google.android.apps.healthdata': '手机', android: '手机', records: '', daily: '' };
+const hcSrcName = src => (src in HC_SRC ? HC_SRC[src] : String(src || '').split('.').pop());
 // 最近 3 天手表推过步数 = 接上了手表
 const watchLinked = () => (DB.steps || []).some(r => r.watch !== '' && r.watch !== null && r.date >= addDays(today(), -3));
 // 用哪个步数算：过去和今天都用实际步数（今天随手表同步实时变）；今天还没同步到时，接了手表按 0 算，没接按平时；以后的天按平时

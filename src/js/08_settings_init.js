@@ -155,7 +155,7 @@ function deficitPreviewHTML() {
 // 手表步数（HC Webhook）
 function watchSummary() {
   const last = STEPS.last || LOCAL.stepsLast;
-  return !last || !last.at ? '未连接' : last.warn === 'daily' ? '分辨率要选「每日」' : agoText(last.at);
+  return !last || !last.at ? '未连接' : hcHint(last) ? hcHint(last).short : agoText(last.at);
 }
 function hookUrl() {
   const sv = LOCAL.server;
@@ -168,8 +168,8 @@ function watchCardHTML() {
       : `<div class="hint" style="margin-top:0;color:var(--warn)">${!connected() ? '—'
           : LOCAL.server && LOCAL.server.v2 && STEPS.err !== 'old' ? '浏览器地址栏的网址（…/exec）后面加 ?token=密码'
           : '后台是旧版：部署 → 管理部署 → ✎ → 版本：新版本 → 部署'}</div>`}
-    ${(STEPS.last || LOCAL.stepsLast || {}).warn === 'daily' ? `<div class="hint" style="color:var(--warn)">上次推送不是每日累计，没写入</div>` : ''}
-    <div class="hint">HC Webhook：步数 · 步数分辨率「每日」· 间隔 30 分钟 · 电池不受限制</div>
+    ${hcHint(STEPS.last || LOCAL.stepsLast) ? `<div class="hint st-hint ${hcHint(STEPS.last || LOCAL.stepsLast).level}">${hcHint(STEPS.last || LOCAL.stepsLast).long}</div>` : ''}
+    <div class="hint">HC Webhook：步数 · 步数分辨率「完整」· 间隔 15–30 分钟 · 电池不受限制</div>
     ${connected() ? `<div class="actions"><button class="btn" onclick="refreshWatch()">刷新</button></div>` : ''}`;
 }
 async function refreshWatch() {
