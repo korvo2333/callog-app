@@ -137,7 +137,7 @@ function tlChart(el, g, o, target, now) {
   el.innerHTML = `<div class="ch-read"></div><svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${o.name}按时间：共 ${fv(total)} ${o.unit}">${svg}</svg>`;
   const read = el.querySelector('.ch-read'), hx = el.querySelector('.xh'), svgEl = el.querySelector('svg');
   const readFor = i => {
-    const x = g[i], names = x.items.map(e => e.name).join('、');
+    const x = g[i], names = (x.items.length > 1 ? `${x.items.length} 样：` : '') + x.items.map(e => e.name).join('、');   // 一行放不下时末尾省略，先写一共几样
     return `<b>${h2hm(x.h)}</b>${x.est ? '（估）' : ''} · 这次 <b>${fv(x[k])}</b> · 累计 <b>${fv(cum[i])}</b>${target > 0 ? ` / ${fv(target)}` : ''} ${o.unit}<span class="tl-what">${esc(names)}</span>`;
   };
   const show = i => {

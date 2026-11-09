@@ -5,8 +5,8 @@
    ═══════════════════════════════════════════════════════════ */
 
 /* ───────── 折叠 ───────── */
-.fold { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .34s cubic-bezier(.2,.8,.2,1), opacity .26s ease; }
-.fold-in { min-height: 0; }
+.fold { display: grid; grid-template-rows: 1fr; grid-template-columns: minmax(0, 1fr); transition: grid-template-rows .34s cubic-bezier(.2,.8,.2,1), opacity .26s ease; }
+.fold-in { min-height: 0; min-width: 0; }   /* 列宽固定为容器宽：里面不换行的长文字（如食物名）不会把整块撑宽 */
 .folded > .fold { grid-template-rows: 0fr; opacity: 0; }
 .folded > .fold > .fold-in, .opening > .fold > .fold-in { overflow: hidden; }
 .fold-t { cursor: pointer; -webkit-user-select: none; user-select: none; }

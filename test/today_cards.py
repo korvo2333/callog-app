@@ -1,6 +1,6 @@
 """今日页的两张卡：训练部位（各主题的人物）+ 摄入时间（热量 / 蛋白质 / 脂肪 / 碳水）。
 先用带密码 abc 的 Code.gs 启动 test/server.js（CODE_PATH=...），再运行：python3 test/today_cards.py"""
-import re
+import json, re
 from playwright.sync_api import sync_playwright
 SHIM = '''
 function mk(s, f) { return { withSuccessHandler: fn => mk(fn, f), withFailureHandler: fn => mk(s, fn),
@@ -77,6 +77,18 @@ with sync_playwright() as p:
     check(ev(f"__q.some(o => o && o.table === 'Log' && o.row && o.row.id === '{fid}' && o.row.time === '07:15')"), 'time change queued for the sheet')
     check(ev("document.querySelectorAll('#tl-kcal path[stroke-dasharray=\"3 2\"]').length") == n_est - 1, 'that bar is no longer estimated')
     check('07:15' in ev("document.querySelector('#t-time > .card-t').textContent") or ev("tlGroups(dayInfo(VIEW.date).foods)[0].h") == 7.25, 'timeline uses the new time')
+    # 食物多、名字长：图和读数不能被撑出卡片（v1.0.17 修：折叠容器的列宽固定为容器宽）
+    long_names = ['鸡胸肉沙拉（凯撒酱、帕玛森芝士、面包丁）', 'セブンイレブン 高たんぱく質 サラダチキン ハーブ', 'Optimum Nutrition Gold Standard Whey Double Rich Chocolate', '希腊酸奶 + 蓝莓 + 格兰诺拉麦片']
+    ev(f"""{json.dumps(long_names, ensure_ascii=False)}.forEach((n, i) => upsertRow('log', {{id: 'l_long' + i, date: '{d}', time: '23:3' + i, meal: '晚餐', type: 'food',
+      name: n, kcal: 150, protein: 10, fat: 5, carb: 12, note: '', foodId: '', ratio: 0}})); renderToday()""")
+    pg.wait_for_timeout(500)
+    inside = ev("""(() => { const c = document.getElementById('t-time').getBoundingClientRect();
+      return [...document.querySelectorAll('#t-time .tl-ch, #t-time .tl-ch svg, #t-time .ch-read, #t-time .tl-what')].every(e => e.getBoundingClientRect().right <= c.right + 0.5)
+        && document.documentElement.scrollWidth <= innerWidth; })()""")
+    check(inside, 'many / long food names: charts and readout stay inside the card')
+    what = ev("(() => { const w = document.querySelector('#tl-kcal .tl-what'); return [w.textContent.slice(0, 5), w.scrollWidth > w.clientWidth]; })()")
+    check(what[0] == '4 样：鸡' and what[1], f'readout starts with the item count, cut with an ellipsis ({what})')
+    ev("['l_long0', 'l_long1', 'l_long2', 'l_long3'].forEach(id => deleteRow('log', id)); renderToday()"); pg.wait_for_timeout(300)
     # 手动添加：今天默认现在，过去的日子留空
     ev("openManual()"); pg.wait_for_timeout(400)
     check(ev("document.getElementById('m-time').value") == '', 'manual add on a past day: time empty')
