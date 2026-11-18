@@ -328,7 +328,6 @@ function onWake() {
   if (t !== lastSeenDay) {
     if (VIEW.date === lastSeenDay) VIEW.date = t;
     lastSeenDay = t;
-    COMPOSE.meal = mealByTime();
     rerender();
   }
   if (connected() && Date.now() - (LOCAL.lastPull || 0) > 60000) syncNow();

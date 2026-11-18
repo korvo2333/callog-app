@@ -32,8 +32,7 @@
 
   <!-- 输入区：静态，不随刷新重建 -->
   <div class="card composer" data-mod="today:composer">
-    <div class="seg" id="c-meal"></div>
-    <textarea class="in" id="c-text" rows="1" style="margin-top:10px" placeholder="吃了什么"
+    <textarea class="in" id="c-text" rows="1" placeholder="吃了什么"
       oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
     <div class="c-img" id="c-img"><img id="c-img-el" alt=""><button onclick="clearComposeImage()" aria-label="移除图片">×</button></div>
     <input type="file" id="c-cam" accept="image/*" capture="environment" hidden onchange="pickImage(event)">

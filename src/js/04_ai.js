@@ -11,11 +11,6 @@ const aiModels = () => (LOCAL.server && LOCAL.server.models && LOCAL.server.mode
 const aiModelInfo = id => aiModels().find(m => m.id === id) || aiModels()[0];
 const usd = v => '$' + (v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(3) : v >= 0.001 ? v.toFixed(4) : v.toFixed(5));
 
-function renderComposeMeal() {
-  $('#c-meal').outerHTML = segHTML('c-meal', MEALS, COMPOSE.meal, 'setComposeMeal');
-}
-function setComposeMeal(v) { COMPOSE.meal = v; }
-
 function pickImage(ev) {
   const file = ev.target.files && ev.target.files[0];
   ev.target.value = '';
@@ -63,7 +58,7 @@ async function sendAI() {
   if (!text && !file) { $('#c-text').focus(); return; }
   if (!connected()) { toast('本机模式不能用 AI'); return; }
   const id = aiId();
-  const req = { id, createdAt: Date.now(), date: VIEW.date, meal: COMPOSE.meal, text, thumb: '', status: 'sending', items: [], note: '', raw: '', error: '', usage: null };
+  const req = { id, createdAt: Date.now(), date: VIEW.date, meal: '', text, thumb: '', status: 'sending', items: [], note: '', raw: '', error: '', usage: null };
   let image = null;
   if (file) {
     try {
@@ -140,7 +135,7 @@ function renderAI() {
   $('#t-ai').innerHTML = list.map(a => {
     const head = `<div class="ai-head">
       ${a.thumb ? `<img class="ai-thumb" src="${a.thumb}" alt="">` : ''}
-      <div class="ai-meta"><b>${esc(a.meal)}</b> · ${md(a.date)}${a.date === today() ? '（今天）' : ''}
+      <div class="ai-meta"><b>${md(a.date)}</b>${a.date === today() ? '（今天）' : ''}
         <div class="ai-text">${esc(a.text)}</div></div>
       ${a.status === 'sending' ? '' : `<button class="ai-star" onclick="dismissAI('${a.id}')" aria-label="关闭">✕</button>`}</div>`;
     let body = '';
@@ -196,7 +191,7 @@ function aiAdd(id) {
   const a = DB.ai.find(x => x.id === id); if (!a) return;
   const on = a.items.filter(i => i.on);
   on.forEach(it => upsertRow('log', {
-    id: uid('l_'), date: a.date, time: a.date === today() ? nowHM() : '', meal: a.meal,
+    id: uid('l_'), date: a.date, time: a.date === today() ? nowHM() : '', meal: '',
     name: it.name || '食物', note: it.amount || '', kcal: num(it.kcal), protein: num(it.protein), fat: num(it.fat), carb: num(it.carb),
     type: 'food', foodId: ''
   }));
@@ -204,7 +199,7 @@ function aiAdd(id) {
   saveDB();
   if (VIEW.date !== a.date) VIEW.date = a.date;
   renderToday();
-  toast(`已添加 ${on.length} 项到${a.meal}`);
+  toast(`已添加 ${on.length} 项`);
 }
 function aiSaveFood(id, i) {
   const a = DB.ai.find(x => x.id === id); if (!a) return;
@@ -223,7 +218,7 @@ async function dismissAI(id) {
 function retryAI(id) { const a = DB.ai.find(x => x.id === id); if (a) submitAI(a); }
 function manualFromAI(id) {
   const a = DB.ai.find(x => x.id === id);
-  if (a) { a.status = 'dismissed'; saveDB(); renderAI(); COMPOSE.meal = a.meal; }
+  if (a) { a.status = 'dismissed'; saveDB(); renderAI(); }
   openManual();
   if (a && a.text) $('#m-name').value = a.text.slice(0, 40);
 }

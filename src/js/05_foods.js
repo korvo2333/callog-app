@@ -111,7 +111,6 @@ function openPortion(fid) {
     <label class="lbl">份量</label>
     <div class="chips" id="p-mults">${[0.5, 1, 1.5, 2, 3].map(m => `<button class="chip ${m === 1 ? 'on' : ''}" data-m="${m}" onclick="setMult(${m})">${m}</button>`).join('')}
       <input class="in sm" id="p-custom" type="number" step="0.1" inputmode="decimal" placeholder="其他" style="width:84px" oninput="setMult(this.value, true)"></div>
-    <div style="margin-top:12px">${segHTML('p-meal', MEALS, COMPOSE.meal)}</div>
     <div class="preview" id="p-prev"></div>
     <div class="actions">
       <button class="btn" style="flex:0 0 auto" onclick="editFood('${fid}')">编辑</button>
@@ -135,13 +134,11 @@ function updatePortion() {
 function confirmPortion() {
   const f = DB.foods.find(x => x.id === PORTION.fid);
   if (!f) return;
-  const meal = segVal('p-meal');
-  COMPOSE.meal = meal;
-  const e = addFoodLog(f, PORTION.mult, meal);
+  const e = addFoodLog(f, PORTION.mult);
   closeSheet();
   renderFoods();
   if (VIEW.tab === 'today') renderToday();
-  toast(`已记入${meal}：${f.name}${PORTION.mult !== 1 ? ' ×' + PORTION.mult : ''}`, '撤销', () => { deleteRow('log', e.id); rerender(); });
+  toast(`已记入：${f.name}${PORTION.mult !== 1 ? ' ×' + PORTION.mult : ''}`, '撤销', () => { deleteRow('log', e.id); rerender(); });
 }
 
 // 编辑 / 新建食物

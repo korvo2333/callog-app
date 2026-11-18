@@ -1,14 +1,14 @@
 // ════════════════════════════════════════════
 // 今日页
 // ════════════════════════════════════════════
-const COMPOSE = { meal: mealByTime(), file: null, url: '' };
+const COMPOSE = { file: null, url: '' };
 
 function shiftDay(n) {
   VIEW.date = addDays(VIEW.date, n);
   if (VIEW.date > today()) VIEW.date = today();
   renderToday();
 }
-function gotoToday() { VIEW.date = today(); COMPOSE.meal = mealByTime(); renderToday(); }
+function gotoToday() { VIEW.date = today(); renderToday(); }
 function gotoDay(d) { VIEW.date = d; go('today'); }
 
 function renderToday() {
@@ -16,7 +16,6 @@ function renderToday() {
   const d = VIEW.date, isToday = d === today();
   $('#t-date').textContent = isToday ? '今天' : dateLabel(d);
   $('#t-sub').textContent = isToday ? dateLabel(d) : '回到今天';
-  renderComposeMeal();
   renderHero();
   renderActivity();
   renderMuscles();
@@ -156,10 +155,10 @@ function quickWeight() {
 function topFoods(n) {   // 只显示吃过的，按次数排序
   return DB.foods.filter(f => (f.uses || 0) > 0).sort((a, b) => (b.uses || 0) - (a.uses || 0) || (a.sort || 0) - (b.sort || 0)).slice(0, n);
 }
-function addFoodLog(f, mult, meal, date) {
+function addFoodLog(f, mult, date) {
   date = date || VIEW.date;
   const e = {
-    id: uid('l_'), date, time: date === today() ? nowHM() : '', meal: meal || COMPOSE.meal,
+    id: uid('l_'), date, time: date === today() ? nowHM() : '', meal: '',
     name: f.name, kcal: r1(f.kcal * mult), protein: r1(f.protein * mult), fat: r1(f.fat * mult), carb: r1(f.carb * mult),
     type: 'food', foodId: f.id, note: (mult !== 1 ? `×${mult} · ` : '') + (f.serving || '')
   };
@@ -175,18 +174,18 @@ function renderList() {
     $('#t-list').innerHTML = `<div class="empty">还没有记录</div>`;
     return;
   }
+  // 饮食不分餐次：一个列表，按时间排（没记时间的排最后），每条前面写时间
   const byTime = (a, b) => (a.time || '99') < (b.time || '99') ? -1 : (a.time || '99') > (b.time || '99') ? 1 : 0;
   let html = '';
-  MEALS.concat(['']).forEach(m => {
-    const list = info.foods.filter(e => (m ? e.meal === m : !MEALS.includes(e.meal))).sort(byTime);
-    if (!list.length) return;
-    const key = 'meal:' + (m || '其他');
-    html += `<div class="meal ${isFolded(key) ? 'folded' : ''}" data-fold="${key}"><div class="meal-h fold-t" ${foldAttrs(key)}><span>${m || '其他'}<small class="meal-n">${list.length}</small></span><span class="num">${fmt(sum(list, 'kcal'))} kcal</span>${FOLD_IC}</div>
+  const list = info.foods.slice().sort(byTime);
+  if (list.length) {
+    const key = 'list:food';
+    html += `<div class="meal ${isFolded(key) ? 'folded' : ''}" data-fold="${key}"><div class="meal-h fold-t" ${foldAttrs(key)}><span>饮食<small class="meal-n">${list.length}</small></span><span class="num">${fmt(sum(list, 'kcal'))} kcal</span>${FOLD_IC}</div>
       <div class="fold"><div class="fold-in">${list.map(e => `<div class="ent" onclick="editEntry('${e.id}')">
         <div class="ent-i"><div class="ent-n">${esc(e.name)}</div>
-          <div class="ent-s">${e.note ? esc(e.note) + ' · ' : ''}P${r1(e.protein)} F${r1(e.fat)} C${r1(e.carb)}</div></div>
+          <div class="ent-s">${e.time ? `<span class="num ent-t">${esc(e.time)}</span> · ` : ''}${e.note ? esc(e.note) + ' · ' : ''}P${r1(e.protein)} F${r1(e.fat)} C${r1(e.carb)}</div></div>
         <div class="ent-k num">${fmt(e.kcal)}</div></div>`).join('')}</div></div></div>`;
-  });
+  }
   const burns = info.entries.filter(e => e.type === 'burn');
   if (burns.length && info.mode === 'formula') {
     html += `<div class="meal ${isFolded('meal:burn') ? 'folded' : ''}" data-fold="meal:burn"><div class="meal-h fold-t" ${foldAttrs('meal:burn')}><span>有氧<small class="meal-n">${burns.length}</small></span><span class="num">+${fmt(info.burn)} kcal</span>${FOLD_IC}</div>
@@ -215,7 +214,6 @@ function editEntry(id) {
     <input class="in" id="e-name" value="${esc(e.name)}" placeholder="名称">
     <input class="in" id="e-note" value="${esc(e.note)}" placeholder="份量" style="margin-top:8px">
     <label class="tm-row"><span>时间</span><input class="in" type="time" id="e-time" value="${esc(e.time)}"></label>
-    <div style="margin-top:10px">${segHTML('e-meal', MEALS, e.meal)}</div>
     <div style="margin-top:12px">${macroInputs('e', e)}</div>
     <div class="chips" style="margin-top:10px">
       <button class="chip" onclick="scaleInputs('e',0.5)">×0.5</button>
@@ -230,7 +228,7 @@ function editEntry(id) {
 }
 function saveEntry(id) {
   const m = readMacros('e');
-  upsertRow('log', Object.assign({ id, name: $('#e-name').value.trim() || '未命名', note: $('#e-note').value.trim(), time: $('#e-time').value || '', meal: segVal('e-meal') }, m));
+  upsertRow('log', Object.assign({ id, name: $('#e-name').value.trim() || '未命名', note: $('#e-note').value.trim(), time: $('#e-time').value || '' }, m));   // 旧记录的餐次不动
   closeSheet(); renderToday();
 }
 function delEntry(id) {
@@ -254,7 +252,6 @@ function openManual() {
     <input class="in" id="m-name" placeholder="名称">
     <input class="in" id="m-note" placeholder="份量" style="margin-top:8px">
     <label class="tm-row"><span>时间</span><input class="in" type="time" id="m-time" value="${VIEW.date === today() ? nowHM() : ''}"></label>
-    <div style="margin-top:10px">${segHTML('m-meal', MEALS, COMPOSE.meal)}</div>
     <div style="margin-top:12px">${macroInputs('m')}</div>
     <label class="row" style="margin-top:12px;font-size:14px;gap:8px">
       <input type="checkbox" id="m-save" style="width:18px;height:18px;accent-color:var(--accent)"> 存入食物库
@@ -267,13 +264,12 @@ function saveManual() {
   if (!m.kcal) { toast('填写热量'); return; }
   const name = $('#m-name').value.trim() || '未命名食物';
   const note = $('#m-note').value.trim();
-  const meal = segVal('m-meal');
   let foodId = '';
   if ($('#m-save').checked) {
     const f = upsertRow('foods', Object.assign({ id: uid('f_'), name, category: '', serving: note, uses: 1, sort: DB.foods.length + 1 }, m));
     foodId = f.id;
   }
-  upsertRow('log', Object.assign({ id: uid('l_'), date: VIEW.date, time: $('#m-time').value || '', meal, name, note, type: 'food', foodId }, m));
+  upsertRow('log', Object.assign({ id: uid('l_'), date: VIEW.date, time: $('#m-time').value || '', meal: '', name, note, type: 'food', foodId }, m));
   closeSheet(); renderToday();
   toast('已添加');
 }

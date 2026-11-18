@@ -55,14 +55,7 @@ const DEFAULT_SETTINGS = {
   stepsDefault: 7000, strengthPerWeek: 4
 };
 
-const MEALS = ['早餐', '午餐', '晚餐', '加餐'];
-function mealByTime() {
-  const h = new Date().getHours() + new Date().getMinutes() / 60;
-  if (h >= 4 && h < 10.5) return '早餐';
-  if (h >= 10.5 && h < 14.5) return '午餐';
-  if (h >= 17 && h < 21.5) return '晚餐';
-  return '加餐';
-}
+// 饮食记录不再分早餐 / 午餐 / 晚餐 / 加餐：新记录的 meal 列留空，旧记录的餐次保留在表格里（摄入时间图上没记时间的旧记录还按餐次估）
 
 // ════════════════════════════════════════════
 // 本机存储

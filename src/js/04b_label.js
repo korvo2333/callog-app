@@ -38,7 +38,7 @@ async function pickLabel(ev) {
   if (!file) return;
   try {
     const r = await labelImage(file);
-    LABEL = { thumb: r.thumb, image: r.image, status: 'reading', label: null, err: '', mult: 1, grams: '', meal: COMPOSE.meal };
+    LABEL = { thumb: r.thumb, image: r.image, status: 'reading', label: null, err: '', mult: 1, grams: '' };
   } catch (e) { toast(e.message); return; }
   readLabel();
 }
@@ -104,7 +104,6 @@ function renderLabel() {
     <label class="lbl">吃了</label>
     <div class="chips lb-amt">${labelAmounts(L).map(a => `<button class="chip ${!S.grams && a.m === S.mult ? 'on' : ''}" data-m="${a.m}" onclick="labelMult(${a.m})">${esc(a.t)}</button>`).join('')}
       ${L.basisAmount > 0 ? `<span class="lb-g"><input class="in sm" id="lb-grams" type="number" inputmode="decimal" placeholder="" value="${S.grams}" oninput="labelGrams(this.value)"><span>${u || 'g'}</span></span>` : ''}</div>
-    <div style="margin-top:12px">${segHTML('lb-meal', MEALS, S.meal)}</div>
     <div class="preview" id="lb-prev"></div>
     <label class="row lb-save">
       <input type="checkbox" id="lb-save" checked style="width:18px;height:18px;accent-color:var(--accent)">
@@ -152,7 +151,7 @@ function saveLabel() {
     toast(ex ? '已更新食物库' : '已存入食物库');
     return;
   }
-  const k = S.mult, meal = segVal('lb-meal') || COMPOSE.meal;
+  const k = S.mult;
   const g = parseFloat(S.grams);
   const u = L.basisUnit || 'g';
   const serving = L.basisAmount > 0 ? `${(L.basis || '').replace(/^每/, '') || fmt(L.basisAmount) + u}` : (L.basis || '').replace(/^每/, '') || '1份';
@@ -163,12 +162,11 @@ function saveLabel() {
     foodId = f.id;
   }
   const note = (isFinite(g) && g > 0 ? `${fmt(g)}${u}` : k !== 1 ? `×${k}` + (L.basisAmount > 0 ? ` · ${fmt(L.basisAmount * k)}${u}` : '') : serving);
-  COMPOSE.meal = meal;
   const e = upsertRow('log', {
-    id: uid('l_'), date: VIEW.date, time: VIEW.date === today() ? nowHM() : '', meal, name, type: 'food', foodId, note,
+    id: uid('l_'), date: VIEW.date, time: VIEW.date === today() ? nowHM() : '', meal: '', name, type: 'food', foodId, note,
     kcal: r1(m.kcal * k), protein: r1(m.protein * k), fat: r1(m.fat * k), carb: r1(m.carb * k)
   });
   LABEL = null;
   closeSheet(); renderToday();
-  toast(`已记入${meal}：${name}`, '撤销', () => { deleteRow('log', e.id); renderToday(); });
+  toast(`已记入：${name}`, '撤销', () => { deleteRow('log', e.id); renderToday(); });
 }

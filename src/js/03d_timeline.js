@@ -2,7 +2,7 @@
 // 今日：摄入时间（热量 + 蛋白质 / 脂肪 / 碳水，各一张）
 // 柱 = 那个时间吃了多少（左轴），线 = 吃到那时为止的累计（右轴），虚线 = 当天目标
 // ════════════════════════════════════════════
-const MEAL_HM = { '早餐': '08:00', '午餐': '12:30', '加餐': '15:30', '晚餐': '19:00' };   // 没有时间的记录按餐次估
+const MEAL_HM = { '早餐': '08:00', '午餐': '12:30', '加餐': '15:30', '晚餐': '19:00' };   // 以前分餐次时的旧记录没有时间的，按餐次估
 const TL_K = [
   { k: 'kcal', name: '热量', unit: 'kcal', color: 'var(--kcal)', t: 'target' },
   { k: 'protein', name: '蛋白质', unit: 'g', color: 'var(--protein)', t: 'proteinT' },
@@ -22,12 +22,14 @@ function tlDark(c) {
 }
 const h2hm = h => { const m = Math.round(h * 60); return `${pad2(Math.floor(m / 60) % 24)}:${pad2(m % 60)}`; };
 
-// 按时间排好，20 分钟以内的算同一次
+// 按时间排好，20 分钟以内的算同一次。没记时间的：旧记录有餐次就按餐次估（虚线框），新记录不分餐次，放不到时间轴上，另外列在 g.none
 function tlGroups(foods) {
+  const none = [];
   const pts = foods.map(e => {
-    const h = hm2h(e.time);
-    return { h: h !== null ? h : hm2h(MEAL_HM[e.meal] || MEAL_HM['加餐']), est: h === null, e };
-  }).sort((a, b) => a.h - b.h);
+    const h = hm2h(e.time), est = h === null ? hm2h(MEAL_HM[e.meal]) : null;
+    if (h === null && est === null) { none.push(e); return null; }
+    return { h: h !== null ? h : est, est: h === null, e };
+  }).filter(Boolean).sort((a, b) => a.h - b.h);
   const g = [];
   pts.forEach(p => {
     const last = g[g.length - 1];
@@ -35,6 +37,7 @@ function tlGroups(foods) {
     else g.push({ h: p.h, est: p.est, items: [p.e] });
   });
   g.forEach(x => TL_K.forEach(({ k }) => { x[k] = sum(x.items, k); }));
+  g.none = none;
   return g;
 }
 
@@ -47,16 +50,17 @@ function renderTimeline() {
   el.classList.toggle('folded', isFolded('today:tl'));
   const right = g.length ? `${g.length} 次 · 最后 ${h2hm(g[g.length - 1].h)}` : '';
   let body;
-  if (!g.length) body = `<div class="empty">还没有记录</div>`;
+  if (!g.length && !g.none.length) body = `<div class="empty">还没有记录</div>`;
   else {
-    body = TL_K.map(o => {
-      const key = 'tl:' + o.k, tot = sum(g, o.k), tg = num(info[o.t]);
+    body = !g.length ? '' : TL_K.map(o => {
+      const key = 'tl:' + o.k, tot = sum(g, o.k) + sum(g.none, o.k), tg = num(info[o.t]);   // 标题是这天的合计（含没记时间的）
       return `<div class="tl-sec ${isFolded(key) ? 'folded' : ''}" data-fold="${key}">
         <div class="tl-h fold-t" ${foldAttrs(key)}><span class="tl-n"><i style="background:${o.color}"></i>${o.name}</span>
           <span class="num">${fmt(tot)}<small> / ${fmt(tg)} ${o.unit}</small></span>${FOLD_IC}</div>
         <div class="fold"><div class="fold-in"><div class="chart tl-ch" id="tl-${o.k}"></div></div></div></div>`;
     }).join('');
-    if (g.some(x => x.est)) body += `<div class="tl-note">虚线框的柱子没有记时间，按餐次估：早餐 8:00 · 午餐 12:30 · 加餐 15:30 · 晚餐 19:00。点记录可以改时间。</div>`;
+    if (g.some(x => x.est)) body += `<div class="tl-note">虚线框的柱子是以前没记时间的记录，按当时的餐次估：早餐 8:00 · 午餐 12:30 · 加餐 15:30 · 晚餐 19:00。点记录可以改时间。</div>`;
+    if (g.none.length) body += `<div class="tl-note tl-none">${g.none.length} 条没记时间（${fmt(sum(g.none, 'kcal'))} kcal），没画进图：${esc(g.none.slice(0, 3).map(e => e.name).join('、'))}${g.none.length > 3 ? ' 等' : ''}。点记录补上时间就会画进来。</div>`;
   }
   el.innerHTML = `<div class="card-t fold-t" ${foldAttrs('today:tl')}>摄入时间<span>${right}</span>${FOLD_IC}</div>
     <div class="fold"><div class="fold-in">${body}</div></div>`;

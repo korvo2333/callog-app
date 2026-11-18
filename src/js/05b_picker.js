@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════
 // 食物库选择器：在「今日」输入卡里点「食物库」弹出
-// 先选分类 → 点食物展开份量 → 添加，直接记入当前这一餐；弹层不关，可以连着加好几样
+// 先选分类 → 点食物展开份量 → 添加，直接记入这一天；弹层不关，可以连着加好几样
 // ════════════════════════════════════════════
 let PICK = { cat: null, open: '', mult: 1, custom: false, q: '', added: [], anim: '' };
 const PICK_MULTS = [0.5, 1, 1.5, 2, 3];
@@ -9,7 +9,6 @@ const byUse = (a, b) => (b.uses || 0) - (a.uses || 0) || (a.sort || 0) - (b.sort
 function openPicker() {
   PICK = { cat: null, open: '', mult: 1, custom: false, q: '', added: [], anim: '' };
   openSheet('从食物库添加', `
-    ${segHTML('pk-meal', MEALS, COMPOSE.meal, 'pickMeal')}
     <input class="in pk-q" id="pk-q" type="search" enterkeyhint="search" placeholder="搜索"
       oninput="PICK.q=this.value.trim();PICK.open='';PICK.anim='';renderPicker()">
     <div id="pk-body"></div>
@@ -17,7 +16,6 @@ function openPicker() {
   $('#sheet-bg .sheet').classList.add('tall');
   renderPicker();
 }
-function pickMeal(v) { COMPOSE.meal = v; renderComposeMeal(); renderPickFoot(); }
 
 // 分类：常吃（吃过的）在最前，然后是自己建的分类，最后是未分类
 function pickerGroups() {
@@ -112,15 +110,15 @@ function syncPickRow(el) {
 function pickAdd(id) {
   const f = DB.foods.find(x => x.id === id);
   if (!f) return;
-  const meal = segVal('pk-meal') || COMPOSE.meal, mult = PICK.mult;
-  const e = addFoodLog(f, mult, meal);
+  const mult = PICK.mult;
+  const e = addFoodLog(f, mult);
   PICK.added.push(e);
   PICK.open = ''; PICK.mult = 1; PICK.custom = false;
   const sh = $('#sheet-bg .sheet'), y = sh.scrollTop;
   renderPicker();
   sh.scrollTop = y;
   renderToday();
-  toast(`已记入${meal}：${f.name}${mult !== 1 ? ' ×' + mult : ''}`, '撤销', () => {
+  toast(`已记入：${f.name}${mult !== 1 ? ' ×' + mult : ''}`, '撤销', () => {
     deleteRow('log', e.id);
     const ff = DB.foods.find(x => x.id === id);
     if (ff) upsertRow('foods', { id, uses: Math.max(0, (ff.uses || 1) - 1) });
@@ -140,5 +138,5 @@ function renderPickFoot() {
   const n = PICK.added.length;
   ft.innerHTML = n
     ? `<span class="pk-sum"><span><b class="num">${n}</b> 项 · <b class="num">${fmt(sum(PICK.added, 'kcal'))}</b> kcal</span><small>${leftTxt}</small></span><button class="btn pri" onclick="closeSheet()">完成</button>`
-    : `<span class="pk-sum"><span>${esc(segVal('pk-meal') || COMPOSE.meal)}</span><small>${leftTxt}</small></span>`;
+    : `<span class="pk-sum"><span>${VIEW.date === today() ? '今天' : md(VIEW.date)}</span><small>${leftTxt}</small></span>`;
 }

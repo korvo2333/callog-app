@@ -105,6 +105,46 @@ with sync_playwright() as p:
     g = ev("tlGroups([{time:'12:00',kcal:300,protein:1,fat:1,carb:1,meal:'午餐'},{time:'12:15',kcal:200,protein:1,fat:1,carb:1,meal:'午餐'},{time:'12:40',kcal:100,protein:0,fat:0,carb:0,meal:'午餐'},{time:'',kcal:50,protein:0,fat:0,carb:0,meal:'晚餐'}]).map(x => [h2hm(x.h), x.kcal, x.est])")
     check(g == [['12:00', 500, False], ['12:40', 100, False], ['19:00', 50, True]], f'grouping within 20 min + meal fallback {g}')
 
+    # ── 饮食不分餐次：一个输入口、一个列表（旧记录的餐次保留在表格里） ──
+    ev("VIEW.date = today(); renderToday()"); pg.wait_for_timeout(400)
+    check(ev("!document.getElementById('c-meal') && !document.querySelector('.composer .seg')"), 'composer: no 早餐/午餐/晚餐/加餐 picker')
+    ev("""upsertRow('log', {id: 'l_old_l', date: today(), time: '12:10', meal: '午餐', type: 'food', name: '旧午餐', kcal: 500, protein: 30, fat: 10, carb: 60, note: '', foodId: ''});
+      upsertRow('log', {id: 'l_old_b', date: today(), time: '07:40', meal: '早餐', type: 'food', name: '旧早餐', kcal: 300, protein: 20, fat: 5, carb: 40, note: '1 碗', foodId: ''});
+      upsertRow('foods', {id: 'f_nm', name: '测试饭团', category: '', serving: '1 个', kcal: 180, protein: 4, fat: 2, carb: 38, uses: 0, sort: 99}); renderToday()""")
+    pg.wait_for_timeout(400)
+    groups = ev("[...document.querySelectorAll('#t-list > .meal')].map(m => m.dataset.fold)")
+    names = ev("[...document.querySelectorAll('#t-list [data-fold=\"list:food\"] .ent-n')].map(e => e.textContent)")
+    check(groups[:1] == ['list:food'] and not any(k in str(groups) for k in ['早餐', '午餐', '晚餐', '加餐']), f'one food list, no meal groups {groups}')
+    check(names.index('旧早餐') < names.index('测试香蕉') < names.index('旧午餐'), f'sorted by time across old meals {names}')
+    sub = ev("document.querySelector('#t-list [data-fold=\"list:food\"] .ent .ent-s').textContent")
+    check(sub.startswith('07:40 · 1 碗'), f'each entry starts with its time ({sub})')
+    check('饮食' in ev("document.querySelector('#t-list [data-fold=\"list:food\"] .meal-h').textContent"), 'list header: 饮食')
+    # 手动添加 / 编辑 / 食物库份量 / 选择器 / 成分表：都没有餐次
+    ev("openManual()"); pg.wait_for_timeout(400)
+    check(ev("!document.getElementById('m-meal') && !document.querySelector('#sheet-body .seg')"), 'manual add: no meal picker')
+    ev("document.getElementById('m-name').value = '无餐次'; document.getElementById('m-kcal').value = '120'; saveManual()"); pg.wait_for_timeout(500)
+    check(ev("DB.log.some(e => e.name === '无餐次' && e.meal === '')"), 'manual entry saved with empty meal')
+    ev("editEntry('l_old_l')"); pg.wait_for_timeout(400)
+    check(ev("!document.getElementById('e-meal')"), 'edit: no meal picker')
+    ev("document.getElementById('e-name').value = '旧午餐改'; saveEntry('l_old_l')"); pg.wait_for_timeout(400)
+    check(ev("DB.log.find(e => e.id === 'l_old_l').meal") == '午餐' and ev("DB.log.find(e => e.id === 'l_old_l').name") == '旧午餐改', 'editing an old entry keeps its meal in the sheet')
+    ev("openPortion('f_nm')"); pg.wait_for_timeout(400)
+    check(ev("!document.getElementById('p-meal')"), 'food portion sheet: no meal picker')
+    ev("confirmPortion()"); pg.wait_for_timeout(400)
+    check(ev("DB.log.some(e => e.foodId === 'f_nm' && e.meal === '')") and '已记入：测试饭团' in pg.inner_text('#toast'), 'portion add: empty meal, toast 已记入：测试饭团')
+    ev("openPicker()"); pg.wait_for_timeout(500)
+    check(ev("!document.getElementById('pk-meal')") and '今天' in pg.inner_text('#pk-foot'), 'picker: no meal picker, footer shows 今天')
+    ev("closeSheet()"); pg.wait_for_timeout(300)
+    # 过去的日子补录、没记时间：放不到时间轴上，单独说明，标题合计照样算上
+    ev("""VIEW.date = addDays(today(), -400); upsertRow('log', {id: 'l_nt', date: VIEW.date, time: '', meal: '', type: 'food', name: '补录没时间', kcal: 222, protein: 1, fat: 1, carb: 1, note: '', foodId: ''}); renderToday()""")
+    pg.wait_for_timeout(500)
+    note = ev("(document.querySelector('#t-time .tl-none') || {}).textContent || ''")
+    tl = ev("tlGroups(dayInfo(VIEW.date).foods)")
+    check('1 条没记时间' in note and '补录没时间' in note and not any('补录没时间' in str(x) for x in tl), f'untimed new entry left off the axis with a note ({note[:30]})')
+    kh = ev("document.querySelector('#t-time [data-fold=\"tl:kcal\"] .tl-h .num').textContent")
+    check(kh.startswith(f"{ev('fmt(dayInfo(VIEW.date).intake.kcal)')}"), f'chart header total includes untimed entries ({kh})')
+    ev("deleteRow('log', 'l_nt'); VIEW.date = today(); renderToday()"); pg.wait_for_timeout(300)
+
     # ── 训练部位：每个主题只换配色（不再有主题人物） ──
     themes = ev("THEMES.map(t => t.id)")
     thu = ev("(() => { const t = parseYmd(today()); while (t.getDay() !== 4) t.setDate(t.getDate() + 1); return ymd(t); })()")

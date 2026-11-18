@@ -61,6 +61,7 @@ with sync_playwright() as p:
     pg.wait_for_selector('#lock.open', state='hidden', timeout=10000)
     pg.wait_for_function("document.querySelector('#sync-pill').getAttribute('aria-label') === '已同步'", timeout=10000)
     check(True, 'unlocked + synced')
+    pg.evaluate("setSetting('overrides', [])")   # 默认设置里带一个「维持周」（2026-11-15 ~ 11-21），测试按公式算目标，先清掉
     check(not pg.is_visible('#local-banner'), 'app mode: no preview banner')
     pg.click('#nav-settings')
     pg.wait_for_timeout(300)
@@ -144,6 +145,7 @@ with sync_playwright() as p:
     check('完整' in pg.inner_text('.act-steps') and pg.evaluate("stepsFor(today()).n") == 12500, 'N-minute → warning shown, steps unchanged')
     # 手动选日期同步时今天的结束时间在将来：按现在算，之后的正常同步还能更新
     rf = hook('abc', {'steps': [{'count': 12500, 'start_time': iso(d0), 'end_time': iso(d0 + _dt.timedelta(days=1))}]})
+    pg.wait_for_timeout(50)   # 「之后」的同步：同一毫秒内发出的话结束时间一样，不会更新
     rn = hook('abc', {'steps': [{'count': 12500, 'start_time': iso(d0), 'end_time': iso(_dt.datetime.now(JST))}]})
     check(rf.get('updated') == 1 and rn.get('updated') == 1, f'future end clamped, later sync still updates {rf} {rn}')
     pg.evaluate("pollSteps(true)")
@@ -308,7 +310,7 @@ with sync_playwright() as p:
     # 图片文件确实是合成图（含说明）
     # ── 编辑记录
     pg.locator('.ent', has_text='鸡蛋').click()
-    pg.click('text=×2')
+    pg.click('#sheet-body .chip >> text=×2')   # 只点弹窗里的（训练部位卡上的动作清单也可能有「×2」）
     pg.click('#sheet-body .btn.pri')
     pg.wait_for_timeout(300)
     check('142' in pg.locator('.ent', has_text='鸡蛋').inner_text(), 'edit ×2 → 142 kcal')
