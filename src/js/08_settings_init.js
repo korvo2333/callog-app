@@ -38,12 +38,11 @@ function renderSettings() {
         ${numRow('基础代谢', 'bmr')}
         ${numRow('日常系数', 'restFactor', 0.01)}
         ${numRow('每千步 kcal', 'stepKcal')}
-        ${numRow('力量 kcal', 'strengthKcal')}
         ${CARDIO_KINDS.filter(c => c.key).map(c => `<label class="srow"><span class="cd-srow"><span class="act-ic sm" aria-hidden="true">${cardioIcon(c.k)}</span>${c.name}没填时长 %</span><input class="in sm" type="number" inputmode="numeric" value="${cardioKindPct(c.k, s)}" onchange="setNum('${c.key}', Math.min(100, Math.max(1, parseFloat(this.value) || ${Math.round(c.def * 100)})) / 100)"></label>`).join('')}
-        <div class="hint cd-set-hint">有氧填了时长就按公式算：总消耗 − 静息 − 步数里已算；体重用 ${fmt1(bodyKg(today()).kg)} kg（${bodyKgText(bodyKg(today()))}）</div>
+        <div class="hint cd-set-hint">训练填了时长就按公式算：总消耗 − 静息 − 步数里已算；力量按强度（低 3.5 / 中 5.0 / 高 6.0 MET）；体重用 ${fmt1(bodyKg(today()).kg)} kg（${bodyKgText(bodyKg(today()))}）</div>
         ${numRow('椭圆机步频（步/分）', 'ellCadence')}
         ${numRow('默认步数', 'stepsDefault')}
-        ${numRow('每周力量次数', 'strengthPerWeek')}
+        ${numRow('每周力量次数（刚开始时预估用）', 'strengthPerWeek')}
       </div></div>
     </div>
     <label class="srow" style="margin-top:6px"><span>每周开始</span>
@@ -142,7 +141,7 @@ function deficitPreviewHTML() {
   const s = cfg();
   const avg = stepsAvg(addDays(today(), 1));
   const steps = avg === null ? num(s.stepsDefault) : avg;
-  const E = Math.round(num(s.bmr) * pf(s.restFactor)) + Math.round(steps * pf(s.stepKcal) / 1000) + Math.round(strengthRate() * num(s.strengthKcal));
+  const E = Math.round(num(s.bmr) * pf(s.restFactor)) + Math.round(steps * pf(s.stepKcal) / 1000) + Math.round(strengthEst());
   const cols = DEFICITS.map(x => {
     const tg = Math.max(num(s.bmr), E - x.v);
     return { x, tg, kg: (E - tg) * 7 / 7700, on: x.v === deficitOf(s) };

@@ -1,29 +1,39 @@
 // ════════════════════════════════════════════
-// 有氧：计入多少（标准做法）
+// 训练（力量 + 有氧）：计入多少（标准做法）
 //   计入 = 这段运动的总消耗 − 这段时间本来就有的消耗（基础代谢 × 日常系数）− 步数里已经算过的部分
 //   总消耗按手上最可靠的数据算（从上往下）：
 //     ① 屏幕上的平均 MET × 体重 × 小时（Compendium 的定义：1 MET ≈ 1 kcal/kg/h）
 //     ② 跑步机的速度、坡度 / 跑步的距离 → ACSM 代谢公式（每升氧约 5 kcal）
 //        走：VO2 = 0.1·S + 1.8·S·G + 3.5　跑：VO2 = 0.2·S + 0.9·S·G + 3.5（ml/kg/min，S 米/分，G 坡度）
 //     ③ 手表 / 器械显示的 kcal × 90%（这类数字普遍偏高；「活动消耗」不含基础代谢，先加回来）
-//     ④ 都没有：2024 Adult Compendium 的 MET（拳击课按强度选；AI 也可以按心率等估一个）
+//     ④ 都没有：2024 Adult Compendium 的 MET（力量、拳击课按强度选；AI 也可以按心率等估一个）
 //   体重用近 7 天平均（没有就用最近一次称重）。没填时长时只能按种类的比例（设置里可改）。
 //   每条记录把算的过程存在 detail 里：以后改设置、体重变了，旧记录不变。
 // ════════════════════════════════════════════
 const WATCH_ACC = 0.9;
 const CARDIO_KINDS = [
+  { k: 'str', name: '力量', title: '力量训练', f: ['lvl', 'steps'] },
   { k: 'ell', name: '椭圆机', key: 'cardioEll', def: 0.2, why: '椭圆机的步数也算进了步数消耗', f: ['kcal', 'met', 'steps'] },
   { k: 'tread', name: '跑步机', f: ['speed', 'grade', 'gait', 'kcal', 'steps'] },
   { k: 'run', name: '跑步', key: 'cardioRun', def: 0.5, why: '跑步的步数也算进了步数消耗', f: ['dist', 'kcal', 'steps'] },
   { k: 'box', name: '拳击', title: '拳击课', f: ['lvl', 'kcal', 'steps'] },
   { k: 'other', name: '其他', key: 'cardioFactor', def: 0.7, why: '手表的数字含基础代谢，而且偏高', f: ['name', 'kcal', 'met', 'steps'] }
 ];
-// 拳击课强度（2024 Adult Compendium of Physical Activities）
+// 按强度选 MET 的种类（2024 Adult Compendium of Physical Activities）。t：记录说明里写的
 const BOX_LV = [
-  { met: 5.8, name: '轻松', d: '沙袋、技术练习', code: '15110' },
-  { met: 7.8, name: '普通', d: '手靶、对练', code: '15120' },
-  { met: 9.3, name: '高强度', d: '连续模拟回合', code: '15125' }
+  { met: 5.8, name: '轻松', t: '轻松', d: '沙袋、技术练习', code: '15110' },
+  { met: 7.8, name: '普通', t: '普通强度', d: '手靶、对练', code: '15120' },
+  { met: 9.3, name: '高强度', t: '高强度', d: '连续模拟回合', code: '15125' }
 ];
+const STR_LV = [
+  { met: 3.5, name: '低', t: '低强度', d: '孤立动作为主', code: '02054' },
+  { met: 5.0, name: '中', t: '中强度', d: '复合动作为主', code: '02052' },
+  { met: 6.0, name: '高', t: '高强度', d: '大重量、少休息', code: '02050' }
+];
+const LV_OF = { box: BOX_LV, str: STR_LV };
+const lvDefault = k => (k === 'str' ? (STR_LV.find(x => x.met === num(LOCAL.strMet)) || STR_LV[1]) : BOX_LV[1]).met;   // 力量记住上次选的强度
+// 旧版「力量」开关记的那天（type = strength，固定按设置里的力量 kcal）
+const isLegacyStrength = e => e && e.type === 'strength';
 const cardioDef = k => CARDIO_KINDS.find(x => x.k === k) || CARDIO_KINDS[CARDIO_KINDS.length - 1];
 const cardioKindPct = (k, s) => { const c = cardioDef(k); s = s || cfg(); return c.key ? Math.round(pf(s[c.key] != null ? s[c.key] : c.def) * 100) : 0; };
 
@@ -73,7 +83,7 @@ function acsmVO2(kmh, gradePct, gait) {
   return gait === 'run' ? 0.2 * S + 0.9 * S * G + 3.5 : 0.1 * S + 1.8 * S * G + 3.5;
 }
 const clampN = (v, a, b) => Math.min(b, Math.max(a, v));
-// 没填手表步数时估的步频（步/分）：椭圆机按设置；走路约 70 + 8×速度；跑步约 140 + 2.5×速度；拳击 / 其他按 0
+// 没填手表步数时估的步频（步/分）：椭圆机按设置；走路约 70 + 8×速度；跑步约 140 + 2.5×速度；力量 / 拳击 / 其他按 0
 function cardioCadence(d, s) {
   s = s || cfg();
   if (d.k === 'ell') return num(s.ellCadence) || 106;
@@ -102,12 +112,12 @@ function cardioCalc(d, s, date) {
   }
   const b = bodyKg(date || VIEW.date), kg = b.kg, h = min / 60;
   const useMet = m => { o.src = 'met'; o.met = m; o.kg = kg; o.kgSrc = b; o.gross = m * kg * h; };
-  if (met > 0 && d.mf !== 'estimate' && d.k !== 'box') useMet(met);                          // ① 屏幕上的 MET
+  if (met > 0 && d.mf !== 'estimate' && !LV_OF[d.k]) useMet(met);                             // ① 屏幕上的 MET
   else if (d.k === 'tread' && num(d.sp) > 0 || d.k === 'run' && num(d.dist) > 0) {              // ② ACSM
     const tr = d.k === 'tread', sp = tr ? num(d.sp) : num(d.dist) / h, gait = tr ? treadGait(d) : 'run';
     const vo2 = acsmVO2(sp, tr ? d.gr : 0, gait);
     Object.assign(o, { src: 'acsm', sp: r1(sp), gr: tr ? parseFloat(d.gr) || 0 : 0, gait, met: r1(vo2 / 3.5), kg, kgSrc: b, gross: vo2 * kg * min * 5 / 1000 });
-  } else if (kcal > 0) {                                                                       // ③ 手表 / 器械（拳击课戴了手表也按手表）
+  } else if (kcal > 0 && d.k !== 'str') {                                                      // ③ 手表 / 器械（拳击课戴了手表也按手表；力量不用手表的数，按强度）
     o.src = 'device'; o.kt = d.kt === 'active' ? 'active' : 'total';
     o.bmrAdd = o.kt === 'active' ? pf(s.bmr) / 1440 * min : 0;
     o.gross = kcal * WATCH_ACC + o.bmrAdd;
@@ -136,8 +146,8 @@ function cardioNote(d, r) {
   if (d.k === 'tread' && r.src === 'acsm') p.push(`${fmt1(r.sp)} km/h`, `坡度 ${fmt1(r.gr)}%`, r.gait === 'run' ? '跑' : '走');
   else if (d.k === 'run' && r.src === 'acsm') p.push(`${fmt1(num(d.dist))} km`, `配速 ${pace(r.sp)}`);
   else if (r.src === 'met') {
-    const lv = d.k === 'box' && BOX_LV.find(x => x.met === r.met);
-    p.push(lv ? `${lv.name}强度` : `MET ${fmt1(r.met)}${d.mf === 'estimate' ? '（估）' : ''}`);
+    const lv = LV_OF[d.k] && LV_OF[d.k].find(x => x.met === r.met);
+    p.push(lv ? lv.t : `MET ${fmt1(r.met)}${d.mf === 'estimate' ? '（估）' : ''}`);
   } else if (r.src === 'device') p.push(`${d.k === 'ell' || d.k === 'tread' ? '机器' : '手表'} ${fmt(r.kcal)}${r.kt === 'active' ? '（活动）' : ''}`);
   if (!r.stEst && r.stN > 0) p.push(`${fmt(r.stN)} 步`);
   return p.join(' · ');

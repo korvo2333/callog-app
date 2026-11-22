@@ -34,6 +34,8 @@ with sync_playwright() as p:
         pg.wait_for_timeout(1900)
         return r
     tab = lambda: pg.evaluate('VIEW.tab')
+    # 从 y=420 往下、再往上找一个不在图表、输入框上的起点（页面内容随日期变化，固定的点可能落在图表上）
+    free_y = lambda x: pg.evaluate(f"(() => {{ const ys = []; for (let y = 420; y < 720; y += 20) ys.push(y); for (let y = 400; y > 120; y -= 20) ys.push(y); for (const y of ys) {{ const e = document.elementFromPoint({x}, y); if (e && !swipeBlocked(e)) return y; }} return 420; }})()")
 
     for th in ['lime', 'neon', 'ios', 'nature', 'academy']:
         pg.evaluate(f"LOCAL.theme = '{th}'; applyTheme(); go('today')"); pg.wait_for_timeout(1900)
@@ -43,9 +45,10 @@ with sync_playwright() as p:
         check(tab() == 'week', f'swipe left → week ({tab()})')
         check(st and 'show' in st['cls'] and 'ready' in st['cls'] and 'r' in st['cls'].split() and st['label'] == '本周' and st['r'] <= 360, f'hint shown on right, ready, label 本周 {st}')
         check(pg.evaluate("!document.getElementById('swipe-hint').classList.contains('show')"), 'hint hidden after release')
-        swipe(300, 420, 120, 420); check(tab() == 'body', 'swipe left again → body')
-        swipe(60, 420, 260, 420); check(tab() == 'week', 'swipe right → week')
-        swipe(60, 420, 260, 420); check(tab() == 'today', 'swipe right → today')
+        # 本周 / 身体页上 y=420 可能正好是图表（图表上横拉是看数据，不换页），从不在图表上的地方开始拉
+        y = free_y(300); swipe(300, y, 120, y); check(tab() == 'body', 'swipe left again → body')
+        y = free_y(60); swipe(60, y, 260, y); check(tab() == 'week', 'swipe right → week')
+        y = free_y(60); swipe(60, y, 260, y); check(tab() == 'today', 'swipe right → today')
         st = swipe(60, 420, 300, 420, hold=lambda: pg.evaluate("document.getElementById('swipe-hint').className"))
         check(tab() == 'today' and 'end' in st and 'ready' not in st, f'first page: no wrap, hint dimmed ({st})')
         if th != 'lime': continue

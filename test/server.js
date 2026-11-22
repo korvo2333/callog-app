@@ -176,6 +176,7 @@ ctx.UrlFetchApp = {
       const z = { speedKmh: 0, inclinePct: 0, gait: 'unknown', distanceKm: 0, avgHr: 0, maxHr: 0, watts: 0, steps: 0 };
       const cardio = img
         ? Object.assign({}, z, { ok: true, kind: 'ell', name: '椭圆机', minutes: 49.8, deviceKcal: 400, kcalType: 'total', met: 5.7, metFrom: 'screen', speedKmh: 6.9, avgHr: 125, maxHr: 140, watts: 80, watchWorn: 'unknown', note: '机器按约 85 kg 计算，App 会按你的体重换算' })
+        : JSON.stringify(body.messages).includes('力量') ? Object.assign({}, z, { ok: true, kind: 'other', name: '力量训练', minutes: 50, deviceKcal: 320, kcalType: 'total', met: 5.3, metFrom: 'estimate', watchWorn: 'yes', note: '按心率估的强度' })
         : Object.assign({}, z, { ok: true, kind: 'box', name: '拳击课', minutes: 60, deviceKcal: 0, kcalType: 'unknown', met: 7.8, metFrom: 'estimate', watchWorn: 'no', note: '按手靶、对练估计' });
       return resp(200, { id: 'msg_mock', type: 'message', role: 'assistant', model: body.model, stop_reason: 'end_turn',
         content: [{ type: 'text', text: JSON.stringify(cardio) }], usage: { input_tokens: img ? 3100 : 900, output_tokens: 160 } });

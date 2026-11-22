@@ -187,9 +187,14 @@ function renderList() {
         <div class="ent-k num">${fmt(e.kcal)}</div></div>`).join('')}</div></div></div>`;
   }
   const burns = info.entries.filter(e => e.type === 'burn');
-  if (burns.length && info.mode === 'formula') {
-    html += `<div class="meal ${isFolded('meal:burn') ? 'folded' : ''}" data-fold="meal:burn"><div class="meal-h fold-t" ${foldAttrs('meal:burn')}><span>有氧<small class="meal-n">${burns.length}</small></span><span class="num">+${fmt(info.burn)} kcal</span>${FOLD_IC}</div>
-      <div class="fold"><div class="fold-in">${burns.map(e => `<div class="ent cd-ent" onclick="editEntry('${e.id}')">
+  const legacyStr = info.mode === 'formula' ? info.entries.filter(isLegacyStrength) : [];
+  if ((burns.length || legacyStr.length) && info.mode === 'formula') {   // 训练：力量 + 有氧（旧版力量开关记的也列在这里）
+    const n = burns.length + legacyStr.length, p = info.parts;
+    html += `<div class="meal ${isFolded('meal:burn') ? 'folded' : ''}" data-fold="meal:burn"><div class="meal-h fold-t" ${foldAttrs('meal:burn')}><span>训练<small class="meal-n">${n}</small></span><span class="num">+${fmt(p.strengthK + p.cardioK)} kcal</span>${FOLD_IC}</div>
+      <div class="fold"><div class="fold-in">${legacyStr.map(e => `<div class="ent cd-ent" onclick="editEntry('${e.id}')">
+        <span class="act-ic sm" aria-hidden="true">${cardioIcon('str')}</span>
+        <div class="ent-i"><div class="ent-n">力量训练（旧）</div><div class="ent-s">以前的开关 · 固定按设置</div></div>
+        <div class="ent-k burn num">+${fmt(num(cfg().strengthKcal))}</div></div>`).join('')}${burns.map(e => `<div class="ent cd-ent" onclick="editEntry('${e.id}')">
         <span class="act-ic sm" aria-hidden="true">${cardioIcon(cardioKind(e))}</span>
         <div class="ent-i"><div class="ent-n">${esc(e.name)}</div><div class="ent-s">${esc(cardioSub(e))}</div></div>
         <div class="ent-k burn num">+${fmt(cardioCounted(e))}</div></div>`).join('')}</div></div></div>`;
@@ -209,7 +214,7 @@ function editEntry(id) {
   const e = DB.log.find(x => x.id === id);
   if (!e) return;
   if (e.type === 'burn') return openBurn(e);
-  if (e.type === 'strength') return toggleStrength();
+  if (e.type === 'strength') return openLegacyStrength(e);
   openSheet('编辑记录', `
     <input class="in" id="e-name" value="${esc(e.name)}" placeholder="名称">
     <input class="in" id="e-note" value="${esc(e.note)}" placeholder="份量" style="margin-top:8px">
@@ -306,21 +311,19 @@ function renderActivity() {
   else if (st.src === 'wait') sub = '未同步';
   else sub = `按平时 ${fmt(st.usual)}`;
   const shown = st.actual !== null ? st.actual : st.n;
+  const trainK = p.strengthK + p.cardioK;   // 训练 = 力量 + 有氧
+  const trainSub = p.future ? '按最近 14 天的力量估' : [p.strengthK && `力量 +${fmt(p.strengthK)}`, p.cardioK && `有氧 +${fmt(p.cardioK)}`].filter(Boolean).join(' · ') || '力量、有氧都在这里记';
   el.innerHTML = `
     <button class="act-steps" onclick="openSteps()">
       <span class="act-ic">${ACT_IC.steps}</span>
       <span class="act-v"><span><b class="num">${fmt(shown)}</b> 步</span><small>${sub}</small></span>
       <span class="act-k num">+${fmt(p.stepsK)}</span>
     </button>
-    <div class="act-two">
-      <button class="act-tog ${p.strength ? 'on' : ''}" role="switch" aria-checked="${p.strength}" onclick="toggleStrength()">
-        <span class="act-sw" aria-hidden="true"><i></i></span>
-        <span class="act-txt"><span class="act-lb">力量</span><span class="act-k num">${p.strength ? '+' + fmt(p.strengthK) : '—'}</span></span>
-      </button>
-      <button class="act-add" onclick="openBurn()">
-        <span class="act-txt"><span class="act-lb">${ACT_IC.cardio}有氧</span><span class="act-k num">${p.cardioK ? '+' + fmt(p.cardioK) : '—'}</span></span>
-        <span class="act-plus" aria-hidden="true">＋</span></button>
-    </div>
+    <button class="act-add act-train" onclick="openBurn()" aria-label="记训练：力量、有氧">
+      <span class="act-ic">${ACT_IC.lift}</span>
+      <span class="act-v"><span class="act-lb">训练</span><small>${trainSub}</small></span>
+      <span class="act-k num">${trainK ? (p.future ? '预估 +' : '+') + fmt(trainK) : '—'}</span>
+      <span class="act-plus" aria-hidden="true">＋</span></button>
     <div class="act-why ${isFolded('today:why') ? 'folded' : ''}" data-fold="today:why">
       <div class="act-why-t fold-t" ${foldAttrs('today:why')}><span>消耗 <b class="num">${fmt(p.E)}</b> − 缺口 <b class="num">${fmt(p.deficit)}</b> = <b class="num">${fmt(info.target)}</b></span>${FOLD_IC}</div>
       <div class="fold"><div class="fold-in"><table class="why">
@@ -335,15 +338,6 @@ function renderActivity() {
         <tr class="sum"><td>目标</td><td class="num">${fmt(info.target)}</td></tr>
       </table></div></div>
     </div>`;
-}
-
-function toggleStrength() {
-  const d = VIEW.date;
-  const ex = DB.log.find(e => e.date === d && e.type === 'strength');
-  if (ex) deleteRow('log', ex.id);
-  else upsertRow('log', { id: uid('l_'), date: d, time: d === today() ? nowHM() : '', meal: '', type: 'strength', name: '力量训练', kcal: 0, protein: 0, fat: 0, carb: 0, note: '', foodId: '' });
-  renderToday();
-  if (!ex) toast(`力量 +${fmt(num(cfg().strengthKcal))}`);
 }
 
 // 手表同步的数据到几点：整天的写「整天」；「完整」模式写「三星健康 HH:MM 更新」（写入的 App 最后一次更新这天步数的时间）；「每日」写「截至 HH:MM」

@@ -321,14 +321,21 @@ function stepsFor(date) {
   return Object.assign({ n: usual, src: date < t ? 'none' : 'usual', actual: null }, o);
 }
 // 有氧怎么算：见 02b_cardio.js
-function strengthRate() {   // 以后几天的预估：最近 14 天练了几次力量；新公式刚开始时用设置里的每周次数
+// 以后几天的力量预估（每天平均 kcal）：最近 14 天力量实际计入的合计 ÷ 14；
+// 新公式开始不到 14 天时：设置里的每周次数 × 一次 60 分钟中强度 ÷ 7
+function strengthEst() {
   const s = cfg(), t = today();
   if (s.formulaFrom && diffDays(s.formulaFrom, t) >= 14) {
     const from = addDays(t, -14);
-    const days = new Set(DB.log.filter(e => e.type === 'strength' && e.date >= from && e.date < t).map(e => e.date));
-    return days.size / 14;
+    let k = 0;
+    DB.log.forEach(e => {
+      if (e.date < from || e.date >= t) return;
+      if (isLegacyStrength(e)) k += num(s.strengthKcal);
+      else if (e.type === 'burn' && cardioKind(e) === 'str') k += cardioCounted(e, s);
+    });
+    return k / 14;
   }
-  return pf(s.strengthPerWeek) / 7;
+  return pf(s.strengthPerWeek) / 7 * cardioCalc({ k: 'str', min: 60, met: STR_LV[1].met }, s, t).cnt;
 }
 function overrideFor(date) {
   return (cfg().overrides || []).find(o => o.from && o.to && date >= o.from && date <= o.to) || null;
@@ -360,12 +367,14 @@ function dayInfo(date) {
     return Object.assign(common, { mode: 'plan', burn, base, target: base + burn, carbT: carbFor(base) + Math.round(burn / 4), tdee: num(s.tdee) + burn });
   }
   const st = stepsFor(date);
-  const strength = entries.some(e => e.type === 'strength');
+  // 力量：训练里记的「力量」（按时长 × 强度）+ 旧版开关记的那天（固定按设置）；以后的日子按最近的平均估。有氧：其余的训练记录
+  const strBurns = burns.filter(e => cardioKind(e) === 'str'), legacyStr = entries.some(isLegacyStrength);
+  const strength = legacyStr || strBurns.length > 0;
   const future = date > today();
   const rest = Math.round(num(s.bmr) * pf(s.restFactor));
   const stepsK = Math.round(st.n * pf(s.stepKcal) / 1000);
-  const strengthK = strength ? num(s.strengthKcal) : future ? Math.round(strengthRate() * num(s.strengthKcal)) : 0;
-  const cardioK = sum(burns, e => cardioCounted(e, s));
+  const strengthK = strength ? sum(strBurns, e => cardioCounted(e, s)) + (legacyStr ? num(s.strengthKcal) : 0) : future ? Math.round(strengthEst()) : 0;
+  const cardioK = sum(burns.filter(e => cardioKind(e) !== 'str'), e => cardioCounted(e, s));
   const E = rest + stepsK + strengthK + cardioK;
   const raw = E - deficitOf(s);
   const target = o ? num(o.kcal) + cardioK : Math.max(num(s.bmr), raw);

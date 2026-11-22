@@ -11,8 +11,9 @@ const ICONS = {   // 线条图标（stroke 跟随文字颜色）
   camera: '<path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10.5H4z"/><circle cx="12" cy="13.5" r="3.4"/>',
   cd_pen: '<path d="M4 20l1-4.2L15.6 5.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.2 19z"/><path d="M13.8 7l3.2 3.2M4 20h16"/>',
   image: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.7"/><path d="M4 17l5-4.5 3.5 3 3-2.5 4.5 4"/>',
-  // 有氧种类：椭圆机（飞轮 + 踏板杆 + 扶手）/ 跑步机（斜着的跑带 + 扶手 + 走路的小人）/ 跑步（奔跑的小人）/ 拳击（拳套）/ 其他（火苗）
+  // 训练种类：力量（哑铃）/ 椭圆机（飞轮 + 踏板杆 + 扶手）/ 跑步机（斜着的跑带 + 扶手 + 走路的小人）/ 跑步（奔跑的小人）/ 拳击（拳套）/ 其他（火苗）
   cd_ell: '<circle cx="7" cy="15" r="3.4"/><circle cx="7" cy="15" r=".6"/><path d="M3.5 20.5h17M17.2 20.5l1.6-14.3M18.8 6.2l-3.4-2.6M7 15l9.6-4.2M13.2 12.5h3.6"/>',
+  cd_str: '<path d="M2.8 10v4M21.2 10v4"/><rect x="4.6" y="6.8" width="3.2" height="10.4" rx="1.1"/><rect x="16.2" y="6.8" width="3.2" height="10.4" rx="1.1"/><path d="M7.8 12h8.4"/>',
   cd_tread: '<path d="M2.8 20.2l15.4-4.4"/><path d="M18.2 15.8l1.5-9.6 2 .3"/><circle cx="9.6" cy="4.4" r="1.7"/><path d="M9.4 7.3l-.9 5M9.3 8.6l2.7 1.8M9.1 8.8l-2.4 1.6M8.5 12.3l2.6 4.9M8.5 12.3l-2.2 5.5"/>',
   cd_box: '<path d="M9 18h7.6c2.2 0 3.9-1.8 3.9-4V9.8c0-3.6-2.8-6.3-6.4-6.3h-1c-3.1 0-5.6 2.4-5.8 5.4-1.6.2-2.8 1.5-2.8 3.2 0 2.1 1.6 3.8 3.7 4.1"/><path d="M7.3 8.9c1.4.2 2.3 1.4 2.3 2.8v1.8"/><path d="M9 18v2.8h7.6V18"/>',
   cd_run: '<circle cx="15.2" cy="4.6" r="1.9"/><path d="M13.7 8.2L11 13.6M13.3 8.9l-3.6 1.3-2.4-1.7M13.3 8.9l2.9 2.5 2.7-.7M11 13.6l3.6 2-1.1 4.9M11 13.6l-2.3 3.4-3.7.4"/>',
@@ -26,6 +27,7 @@ const MAGIC_ICONS = {
   foods: '<path d="M9.5 3.5h5M10.5 3.5v5.2L5.6 17.2a2.2 2.2 0 0 0 1.9 3.3h9a2.2 2.2 0 0 0 1.9-3.3l-4.9-8.5V3.5"/><path d="M7.4 14h9.2"/>',
   settings: '<path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5z"/><path d="M5 20.5A2.5 2.5 0 0 1 7.5 18H19v3H7.5A2.5 2.5 0 0 1 5 20.5z"/><path d="M12 6.8l1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3z"/>',
   cd_ell: '<circle cx="12" cy="12" r="3"/><ellipse cx="12" cy="12" rx="9" ry="3.8" transform="rotate(-24 12 12)"/><path d="M19 3.6l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z"/>',
+  cd_str: '<path d="M2.8 10v4M21.2 10v4"/><rect x="4.6" y="6.8" width="3.2" height="10.4" rx="1.1"/><rect x="16.2" y="6.8" width="3.2" height="10.4" rx="1.1"/><path d="M7.8 12h8.4"/><path d="M12 1.8l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5z"/>',
   cd_tread: '<path d="M3 20h4v-3.5h4V13h4V9.5h4V6"/><path d="M3 20h17"/><path d="M18.8 1.8l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z"/>',
   cd_box: '<path d="M9 18h7.6c2.2 0 3.9-1.8 3.9-4V9.8c0-3.6-2.8-6.3-6.4-6.3h-1c-3.1 0-5.6 2.4-5.8 5.4-1.6.2-2.8 1.5-2.8 3.2 0 2.1 1.6 3.8 3.7 4.1"/><path d="M7.3 8.9c1.4.2 2.3 1.4 2.3 2.8v1.8"/><path d="M9 18v2.8h7.6V18"/><path d="M4.4 2.2l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z"/>',
   cd_run: '<path d="M9 4h4.5v8.2l5.4 3.4c.9.6 1.4 1.4 1.4 2.4v1H7v-5.2z"/><path d="M9 7.2C6.9 7 5 5.8 4.2 4c1.7.1 3.3.6 4.8 1.4M9 10.4c-2.4 0-4.4-1-5.5-2.7 1.9-.1 3.7.3 5.5 1.1"/><path d="M7 16.5h13.3"/>',
@@ -43,7 +45,7 @@ const NATURE_ICONS = {
 const icon = (name, w, set) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${(set && set[name]) || ICONS[name]}</svg>`;
 const NAV_KEYS = ['today', 'week', 'body', 'foods', 'settings'];
 // 有氧种类的图标：跟当前主题走（线宽、魔法 / 自然自己的画法；墨主题用汉字）
-const CARDIO_KANJI = { ell: '踏', tread: '坂', run: '走', box: '拳', other: '動' };
+const CARDIO_KANJI = { str: '力', ell: '踏', tread: '坂', run: '走', box: '拳', other: '動' };
 function cardioIcon(k) {
   const t = THEMES.find(x => x.id === document.documentElement.dataset.theme) || THEMES[0];
   if (t.nav === 'kanji') return `<span class="kj">${CARDIO_KANJI[k] || CARDIO_KANJI.other}</span>`;

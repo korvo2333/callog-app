@@ -1,8 +1,9 @@
 // ════════════════════════════════════════════
-// 有氧表单：选种类 → 填看得到的数字（或拍照让 AI 填）→ 预览计入多少 → 保存
+// 训练表单（力量 + 有氧）：选种类 → 填看得到的数字（或拍照让 AI 填）→ 预览计入多少 → 保存
 // 算法见 02b_cardio.js
 // ════════════════════════════════════════════
-// 当前打开的表单：种类 + 没时长时的比例（编辑旧记录先沿用它存的比例）+ 走/跑 + 拳击强度 + AI 填的来源
+// 当前打开的表单：种类 + 没时长时的比例（编辑旧记录先沿用它存的比例）+ 走/跑 + 强度（metK：这个 MET 是哪种的）+ AI 填的来源
+// replace：从旧版「力量」开关记的那天改过来时，保存后删掉旧的那条
 let BURN = { k: 'ell', pct: 70, k0: 'ell' };
 // 输入框：[字段, id, 标签（按种类）, inputmode, placeholder]
 const CD_FIELDS = [
@@ -15,6 +16,7 @@ const CD_FIELDS = [
   ['steps', 'x-steps', () => '手表记到的步数', 'numeric', '']
 ];
 const CD_HINT = {
+  str: '时长从第一组到最后一组，组间休息算在内，换衣服、拉伸不算。手表步数一般不用填',
   ell: '步数：看手表这段时间记了多少步；空着就按设置里的步频估',
   tread: '按速度和坡度用 ACSM 公式算；尽量别扶扶手（扶着走实际消耗会少两到三成）',
   run: '填了距离按 ACSM 跑步公式算，比手表的 kcal 稳定；没距离就按手表',
@@ -22,9 +24,19 @@ const CD_HINT = {
   other: '手表的 kcal 含基础代谢，填上时长会扣掉这部分'
 };
 const burnDate = () => BURN.date || VIEW.date;
+// 新记录默认选哪种：按这天的训练安排（力量日 → 力量，有氧日 → 上次用的有氧，拳击日 → 拳击）；休息日用上次选的
+function defaultTrainKind(date) {
+  const last = CARDIO_KINDS.some(c => c.k === LOCAL.cardioKind) ? LOCAL.cardioKind : 'ell';
+  const plan = WEEK_PARTS[parseYmd(date).getDay()] || {};
+  if (plan.title === '拳击') return 'box';
+  if (plan.title === '有氧') return last === 'str' || last === 'box' ? 'ell' : last;
+  if (plan.main && plan.main.length) return 'str';
+  return last;
+}
 
-function openBurn(e) {
+function openBurn(e, opts) {
   const editing = e && e.id;
+  opts = opts || {};
   const legacy = !formulaOn(editing ? e.date : VIEW.date);
   if (legacy) {   // 旧日子（新公式之前）：保持原来的「额外消耗」
     openSheet('消耗', `
@@ -36,13 +48,14 @@ function openBurn(e) {
       </div>`);
     return;
   }
-  const fd = editing ? cardioFormData(e) : { k: CARDIO_KINDS.some(c => c.k === LOCAL.cardioKind) ? LOCAL.cardioKind : 'ell' };
+  const fd = editing ? cardioFormData(e) : { k: opts.k || defaultTrainKind(VIEW.date) };
   const k0 = fd.k;
   BURN = { k: k0, k0, pct: editing ? cardioPct(e) : cardioKindPct(k0), date: editing ? e.date : VIEW.date,
-    gait: fd.gait || '', kt: fd.kt || 'total', met: k0 === 'box' ? num(fd.met) || BOX_LV[1].met : 0, mf: fd.mf || '', aiMet: fd.mf === 'estimate' ? String(fd.met) : '', ai: fd.ai || '' };
+    gait: fd.gait || '', kt: fd.kt || 'total', met: LV_OF[k0] ? num(fd.met) || lvDefault(k0) : 0, metK: LV_OF[k0] ? k0 : '',
+    mf: fd.mf || '', aiMet: fd.mf === 'estimate' ? String(fd.met) : '', ai: fd.ai || '', replace: opts.replace || '' };
   CDAI = null;
-  const val = { mins: fd.min, speed: fd.sp, grade: fd.gr, dist: fd.dist, kcal: fd.kcal, met: k0 !== 'box' ? fd.met : '', steps: fd.st };
-  openSheet('有氧', `
+  const val = { mins: fd.min, speed: fd.sp, grade: fd.gr, dist: fd.dist, kcal: fd.kcal, met: !LV_OF[k0] ? fd.met : '', steps: fd.st };
+  openSheet('训练', `
     ${connected() ? cdAiHTML() : ''}
     <div class="cd-opts" role="radiogroup" aria-label="种类">
       ${CARDIO_KINDS.map(c => `<button class="cd-opt" data-k="${c.k}" role="radio" onclick="pickCardio('${c.k}')">
@@ -63,13 +76,14 @@ function openBurn(e) {
       <button class="btn pri" onclick="saveBurn('${editing ? e.id : ''}')">保存</button>
     </div>`);
   pickCardio(k0, true);
-  if (!editing) setTimeout(() => { const el = $(k0 === 'box' || k0 === 'tread' ? '#x-mins' : '#x-kcal'); if (el && !CDAI) el.focus(); }, 300);
+  if (!editing) setTimeout(() => { const el = $(LV_OF[k0] || k0 === 'tread' ? '#x-mins' : '#x-kcal'); if (el && !CDAI) el.focus(); }, 300);
 }
 
 function pickCardio(k, init) {
   if (!init) BURN.pct = k === BURN.k0 && BURN.keep ? BURN.keep : cardioKindPct(k);
   if (init) BURN.keep = BURN.pct;
-  if (!init && k === 'box' && !BURN.met) BURN.met = BOX_LV[1].met;
+  if (!init && LV_OF[k] && !(BURN.metK === k && BURN.met)) { BURN.met = lvDefault(k); BURN.mf = ''; }   // 换到力量 / 拳击：用这种的默认强度
+  if (LV_OF[k]) BURN.metK = k;
   BURN.k = k;
   const c = cardioDef(k);
   document.querySelectorAll('.cd-opt').forEach(b => {
@@ -83,20 +97,21 @@ function pickCardio(k, init) {
   if (kt) kt.parentElement.style.display = c.f.includes('kcal') && (['run', 'box', 'other'].includes(k) || BURN.kt === 'active') ? '' : 'none';
   CD_FIELDS.forEach(([f, id, lb]) => { const l = $('#' + id + '-l'); if (l) l.textContent = lb(k); });
   const h = $('#x-hint');
-  if (h) h.textContent = (CD_HINT[k] || '') + '。平路走路不用记：步数里已经算过了';
+  if (h) h.textContent = (CD_HINT[k] || '') + (k === 'str' ? '' : '。平路走路不用记：步数里已经算过了');
   renderLvl(); renderGait(); burnPreview();
 }
 
-// 拳击课强度
+// 力量 / 拳击课的强度
 function renderLvl() {
-  const el = $('#x-lvl');
+  const el = $('#x-lvl'), lv = LV_OF[BURN.k];
   if (!el) return;
-  const m = BURN.met, custom = m && !BOX_LV.some(x => x.met === m);
-  el.innerHTML = `<label class="lbl">强度（2024 Compendium）</label><div class="chips cd-lv">${BOX_LV.map(x =>
-    `<button class="chip ${m === x.met ? 'on' : ''}" onclick="pickLvl(${x.met})" aria-pressed="${m === x.met}"><b>${x.name}</b> <span class="num">${x.met}</span><small>${x.d}</small></button>`).join('')}
+  if (!lv) { el.innerHTML = ''; return; }
+  const m = BURN.met, custom = m && !lv.some(x => x.met === m);
+  el.innerHTML = `<label class="lbl">强度（2024 Compendium）</label><div class="chips cd-lv">${lv.map(x =>
+    `<button class="chip ${m === x.met ? 'on' : ''}" onclick="pickLvl(${x.met})" aria-pressed="${m === x.met}"><b>${x.name}</b> <span class="num">${x.met.toFixed(1)}</span><small>${x.d}</small></button>`).join('')}
     ${custom ? `<button class="chip on" aria-pressed="true"><b>${BURN.mf === 'estimate' ? 'AI 估' : 'MET'}</b> <span class="num">${m}</span></button>` : ''}</div>`;
 }
-function pickLvl(m) { BURN.met = m; BURN.mf = ''; renderLvl(); burnPreview(); }
+function pickLvl(m) { BURN.met = m; BURN.mf = ''; BURN.metK = BURN.k; renderLvl(); burnPreview(); }
 
 // 走 / 跑（没选时按速度）
 function renderGait() {
@@ -116,7 +131,7 @@ function burnData() {
   const c = cardioDef(BURN.k), v = id => { const el = $('#' + id); return el ? el.value.trim() : ''; }, has = f => c.f.includes(f);
   return {
     k: BURN.k, min: v('x-mins'), kcal: has('kcal') ? v('x-kcal') : '', kt: BURN.kt,
-    met: BURN.k === 'box' ? BURN.met : has('met') ? v('x-met') : '', mf: BURN.k === 'box' || has('met') && v('x-met') ? BURN.mf : '',
+    met: LV_OF[BURN.k] ? BURN.met : has('met') ? v('x-met') : '', mf: LV_OF[BURN.k] || has('met') && v('x-met') ? BURN.mf : '',
     sp: has('speed') ? v('x-speed') : '', gr: has('grade') ? v('x-grade') : '', gait: BURN.gait,
     dist: has('dist') ? v('x-dist') : '', st: v('x-steps'), pct: BURN.pct
   };
@@ -129,7 +144,7 @@ function burnPreview() {
   const s = cfg(), d = burnData(), r = cardioCalc(d, s, burnDate()), c = cardioDef(d.k);
   BURN.calc = r; BURN.d = d;
   const st = $('#x-steps');
-  if (st) st.placeholder = r.src !== 'none' && r.src !== 'ratio' ? `约 ${fmt(Math.round(r.min * r.cad))}` : d.k === 'box' || d.k === 'other' ? '0' : '';
+  if (st) st.placeholder = r.src !== 'none' && r.src !== 'ratio' ? `约 ${fmt(Math.round(r.min * r.cad))}` : ['str', 'box', 'other'].includes(d.k) ? '0' : '';
   if (r.src === 'ratio') {
     const def = cardioKindPct(d.k);   // 旧记录按当时的比例存的；和现在的默认不同时，给一个一键改成现在比例的按钮
     el.innerHTML = `<div class="cd-prev-r"><span>计入</span><b class="num">+${fmt(r.cnt)}</b><span>kcal</span></div>
@@ -138,7 +153,7 @@ function burnPreview() {
     return;
   }
   if (r.src === 'none') {
-    const need = !num(d.min) ? '时长' : d.k === 'tread' ? '速度' : d.k === 'run' ? '距离或手表 kcal' : d.k === 'box' ? '强度' : 'kcal 或 MET';
+    const need = !num(d.min) ? '时长' : d.k === 'tread' ? '速度' : d.k === 'run' ? '距离或手表 kcal' : LV_OF[d.k] ? '强度' : 'kcal 或 MET';
     el.innerHTML = `<div class="cd-prev-r"><span>计入</span><b class="num muted">—</b></div><div class="cd-prev-s">填上${need}就能算</div>`;
     return;
   }
@@ -174,14 +189,27 @@ function saveBurn(id) {
   if (bad(d.dist, 0, 100) || bad(d.met, 0, 25) || bad(d.st, 0, 100000)) { toast('数字不对'); return; }
   if (r.src === 'none') { toast(!num(d.min) ? (c.key ? '填写 kcal' : '填写时长') : '还缺数字，看预览里的提示'); return; }
   const row = cardioRow(d, r, BURN.ai ? { ai: BURN.ai } : null);
+  const rep = BURN.replace ? DB.log.find(x => x.id === BURN.replace) : null;   // 旧版力量开关那条：沿用它的时间，保存后删掉
   const name = c.k === 'other' ? ($('#x-name').value.trim() || '其他')
     : c.k === 'tread' ? (r.src === 'acsm' && r.gait === 'walk' && r.gr >= 3 ? '跑步机爬坡' : '跑步机') : c.title || c.name;
-  LOCAL.cardioKind = c.k; saveLocal();   // 下次默认选上次的种类
+  LOCAL.cardioKind = c.k;   // 下次默认选上次的种类
+  if (c.k === 'str') LOCAL.strMet = r.met;   // 力量记住这次的强度
+  saveLocal();
   const e = upsertRow('log', {
-    id: id || uid('l_'), date: old ? old.date : VIEW.date, time: old ? old.time : VIEW.date === today() ? nowHM() : '', meal: '', type: 'burn',
+    id: id || uid('l_'), date: old ? old.date : rep ? rep.date : VIEW.date, time: old ? old.time : rep ? rep.time : VIEW.date === today() ? nowHM() : '', meal: '', type: 'burn',
     name, kcal: row.kcal, protein: 0, fat: 0, carb: 0, note: row.note, foodId: '', ratio: row.ratio, detail: row.detail
   });
+  if (rep) deleteRow('log', rep.id);
   CDAI = null;
   closeSheet(); renderToday();
-  if (!id) toast(`有氧 +${fmt(cardioCounted(e))}`, '撤销', () => { deleteRow('log', e.id); renderToday(); });
+  if (!id) toast(`${c.k === 'str' ? '力量' : '有氧'} +${fmt(cardioCounted(e))}`, '撤销', () => { deleteRow('log', e.id); if (rep) upsertRow('log', rep); renderToday(); });
+}
+
+// 旧版「力量」开关记的那天：固定按设置里的力量 kcal；可以删，或者改成按时长和强度记
+function openLegacyStrength(e) {
+  openSheet('力量训练（旧）', `<div class="hint" style="margin:0">这是以前「力量」开关记的，固定 +${fmt(num(cfg().strengthKcal))} kcal。现在力量训练按时长和强度算，可以改成新的记法。</div>
+    <div class="actions">
+      <button class="btn danger" style="flex:0 0 auto" onclick="delEntry('${e.id}')">删除</button>
+      <button class="btn pri" onclick="openBurn(null, { k: 'str', replace: '${e.id}' })">改成按时长记</button>
+    </div>`);
 }

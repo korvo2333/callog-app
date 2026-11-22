@@ -89,8 +89,12 @@ function renderCdAi() {
 }
 
 // AI 结果 → 表单
+// AI 的种类里没有「力量」（Code.gs 不变）：名字像力量训练的「其他」转成力量，强度取最接近 AI 估的 MET 的那档
+const STR_NAME = /力量|重量|举铁|撸铁|无氧|器械|筋トレ|ウエイト|ウェイト|weight|strength|resistance/i;
+const nearestLv = (lv, m) => lv.reduce((a, x) => (Math.abs(x.met - m) < Math.abs(a.met - m) ? x : a)).met;
 function cdAiApply(c) {
-  const k = CARDIO_KINDS.some(x => x.k === c.kind) ? c.kind : 'other';
+  let k = CARDIO_KINDS.some(x => x.k === c.kind) ? c.kind : 'other';
+  if (k === 'other' && STR_NAME.test(c.name || '')) k = 'str';
   const set = (id, v) => { const el = $('#' + id); if (el) el.value = v > 0 ? String(v) : ''; };
   set('x-mins', c.minutes); set('x-kcal', c.deviceKcal); set('x-speed', c.speedKmh); set('x-dist', c.distanceKm);
   const gr = $('#x-grade');
@@ -100,9 +104,10 @@ function cdAiApply(c) {
   if (kt) kt.checked = BURN.kt === 'active';
   BURN.gait = c.gait === 'walk' || c.gait === 'run' ? c.gait : '';
   BURN.mf = c.met > 0 ? (c.metFrom === 'estimate' ? 'estimate' : 'screen') : '';
-  if (k === 'box') BURN.met = c.met > 0 ? c.met : BURN.met || BOX_LV[1].met;
+  if (k === 'box') { BURN.met = c.met > 0 ? c.met : BURN.metK === 'box' && BURN.met || BOX_LV[1].met; BURN.metK = 'box'; }
+  if (k === 'str') { BURN.met = c.met > 0 ? nearestLv(STR_LV, c.met) : lvDefault('str'); BURN.metK = 'str'; BURN.mf = ''; }
   const met = $('#x-met');
-  if (met) { met.value = k !== 'box' && c.met > 0 ? String(c.met) : ''; BURN.aiMet = met.value; }
+  if (met) { met.value = !LV_OF[k] && c.met > 0 ? String(c.met) : ''; BURN.aiMet = met.value; }
   const st = $('#x-steps');
   if (st) st.value = c.steps > 0 ? String(Math.round(c.steps)) : c.watchWorn === 'no' ? '0' : '';
   const nm = $('#x-name');

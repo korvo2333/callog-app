@@ -1,4 +1,4 @@
-"""有氧：5 种入口的公式（MET / ACSM / 手表 kcal / Compendium）+ 拍照 / 文字 AI 识别。
+"""训练：力量 + 5 种有氧入口的公式（MET / ACSM / 手表 kcal / Compendium）+ 拍照 / 文字 AI 识别。
 先用带密码 abc 的 Code.gs 启动 test/server.js（CODE_PATH=...），再运行：python3 test/cardio.py [截图目录]"""
 import json, math, os, sys, urllib.request
 from playwright.sync_api import sync_playwright
@@ -53,7 +53,7 @@ with sync_playwright() as p:
 
     # ── 表单：5 种、图标、无障碍 ──
     opn()
-    check(ev("[...document.querySelectorAll('.cd-opt')].map(b => b.dataset.k).join()") == 'ell,tread,run,box,other', 'five kinds: 椭圆机 跑步机 跑步 拳击 其他')
+    check(ev("[...document.querySelectorAll('.cd-opt')].map(b => b.dataset.k).join()") == 'str,ell,tread,run,box,other', 'six kinds: 力量 椭圆机 跑步机 跑步 拳击 其他')
     check(ev("[...document.querySelectorAll('.cd-opt')].every(b => b.getAttribute('role') === 'radio' && b.querySelector('.act-ic svg'))"), 'tiles are radios with icons')
     check(ev("[...document.querySelectorAll('.cd-ai-b')].every(b => b.getBoundingClientRect().height >= 44)") and ev("document.querySelectorAll('.cd-ai-b').length") == 3, 'AI strip: 拍照识别 / 选截图 / 写一句, ≥44px tall')
     check(not pg.is_visible('#cd-ai-text'), 'text box hidden until 写一句')
@@ -141,6 +141,49 @@ with sync_playwright() as p:
     check(ev(f"cardioCounted(DB.log.find(x => x.id === '{e['id']}'))") == e4, 'saved entries keep their numbers when BMR / weight change')
     ev("setSetting('bmr', 1650); deleteRow('body', 'b_cd9'); renderToday()")
 
+    # ⑥ 力量：时长 + 强度（低 3.5 / 中 5.0 / 高 6.0，2024 Compendium 02054 / 02052 / 02050），步数默认 0
+    opn(); pg.click('.cd-opt[data-k="str"]')
+    check(vis() == 'lvl,mins,steps' and not pg.is_visible('#x-kcal'), 'strength fields: 强度 / 时长 / 步数 (' + vis() + ')')
+    lv = ev("[...document.querySelectorAll('.cd-lv .chip')].map(c => c.querySelector('b').textContent + ' ' + c.querySelector('.num').textContent).join(' | ')")
+    check(lv == '低 3.5 | 中 5.0 | 高 6.0' and ev("document.querySelector('.cd-lv .chip.on b').textContent") == '中', f'levels {lv}, default 中')
+    fill(mins=60, steps='')
+    e6 = cnt(5.0 * KG, 60, 0)
+    check(plus() == e6 and 'MET 5 × 77.2 kg × 1 h' in prev() and '（0 步）' in prev(), f'strength 60 min 中: +{e6} ({prev()})')
+    ev("pickLvl(6)"); check(plus() == cnt(6.0 * KG, 60, 0), '高 6.0')
+    ev("pickLvl(3.5)"); check(plus() == cnt(3.5 * KG, 60, 0), '低 3.5')
+    ev("pickLvl(5)"); fill(steps=800); check(plus() == cnt(5.0 * KG, 60, 800), 'watch steps between sets are subtracted')
+    fill(steps='')
+    pg.click('#sheet-body .btn.pri'); pg.wait_for_timeout(400)
+    e = ev("DB.log.filter(e => e.type === 'burn').pop()")
+    d = json.loads(e['detail'])
+    check(e['name'] == '力量训练' and e['note'] == '60 分钟 · 中强度' and d['k'] == 'str' and d['cnt'] == e6, f'strength saved ({e["note"]})')
+    p_ = ev("dayInfo(today()).parts")
+    check(p_['strengthK'] == e6 and p_['strength'] and p_['cardioK'] == e1m + e2 + e4, f'day: strength {p_["strengthK"]} separate from cardio {p_["cardioK"]}')
+    check(f'力量 +{e6}' in pg.inner_text('.act-train') and f'+{e6 + e1m + e2 + e4:,}' in pg.inner_text('.act-train'), 'activity card: 训练 total, 力量 / 有氧 breakdown')
+    check('训练' in ev("document.querySelector('[data-fold=\"meal:burn\"] .meal-h').textContent"), 'list group: 训练')
+    ev(f"editEntry('{e['id']}')"); pg.wait_for_timeout(350)
+    check(ev("BURN.k") == 'str' and ev("document.querySelector('.cd-lv .chip.on b').textContent") == '中' and pg.input_value('#x-mins') == '60', 'edit restores strength level and minutes')
+    # 记住上次的强度
+    opn(); pg.click('.cd-opt[data-k="str"]'); fill(mins=30); ev("pickLvl(6)"); pg.click('#sheet-body .btn.pri'); pg.wait_for_timeout(400)
+    e7 = ev("DB.log.filter(e => e.type === 'burn').pop()")
+    opn(); pg.click('.cd-opt[data-k="str"]')
+    check(ev("document.querySelector('.cd-lv .chip.on b').textContent") == '高', 'remembers the last strength level (高)')
+    ev(f"closeSheet(); deleteRow('log', '{e7['id']}'); LOCAL.strMet = 5; renderToday()"); pg.wait_for_timeout(300)
+    # 旧版「力量」开关记的那天：照样 +200，列表里显示「（旧）」，可以改成按时长记
+    ev("upsertRow('log', {id: 'l_oldstr', date: today(), time: '07:30', meal: '', type: 'strength', name: '力量训练', kcal: 0, protein: 0, fat: 0, carb: 0, note: '', foodId: ''}); renderToday()")
+    check(ev("dayInfo(today()).parts.strengthK") == e6 + 200 and '力量训练（旧）' in pg.inner_text('#t-list'), 'old strength switch day still counts +200, listed as （旧）')
+    ev("editEntry('l_oldstr')"); pg.wait_for_timeout(350)
+    check('改成按时长记' in pg.inner_text('#sheet-body'), 'old entry sheet offers 改成按时长记')
+    pg.click('#sheet-body .btn.pri'); pg.wait_for_timeout(400)
+    check(ev("BURN.k") == 'str' and ev("BURN.replace") == 'l_oldstr', 'opens the training sheet on 力量')
+    fill(mins=45); pg.click('#sheet-body .btn.pri'); pg.wait_for_timeout(400)
+    e8 = ev("DB.log.filter(e => e.type === 'burn').pop()")
+    check(ev("!DB.log.some(e => e.id === 'l_oldstr')") and e8['time'] == '07:30' and ev("dayInfo(today()).parts.strengthK") == e6 + cnt(5.0 * KG * 45 / 60, 45, 0), 'converted: old row removed, new one keeps 07:30')
+    ev(f"deleteRow('log', '{e8['id']}'); renderToday()")
+    # 以后几天的预估：新公式不到 14 天 → 每周次数 4 × 一次 60 分钟中强度 ÷ 7
+    check(ev("dayInfo(addDays(today(), 3)).parts.strengthK") == jr(4 / 7 * cnt(5.0 * KG, 60, 0)), 'future days: strength estimated from 每周次数 × 60 min 中')
+    check(ev("Math.round(strengthEst())") == jr(4 / 7 * cnt(5.0 * KG, 60, 0)), 'strengthEst matches')
+
     # ⑤ 其他：名称 + 手表 kcal；没时长按 70%
     opn(); pg.click('.cd-opt[data-k="other"]')
     check(pg.is_visible('#x-name') and vis() == 'mins,kcal,met,steps' and pg.is_visible('#x-kt'), 'other: name + 时长 / kcal / MET / 步数 + 活动消耗')
@@ -179,6 +222,10 @@ with sync_playwright() as p:
     req = json.loads(urllib.request.urlopen('http://localhost:8787/lastreq').read())
     check(not any(c['type'] == 'image' for c in req['body']['messages'][0]['content']) and '用户补充：拳击课 60 分钟' in req['body']['messages'][0]['content'][-1]['text'], 'text sent without an image')
     pg.screenshot(path=OUT + '/ai_text.png')
+    # 写「力量训练」：AI 的种类里没有力量（Code.gs 不变），名字像力量的「其他」转成力量，强度取最接近的档（5.3 → 中）
+    pg.fill('#cd-ai-text', '力量训练 50 分钟'); pg.click('#cd-ai-tx .btn')
+    pg.wait_for_function("CDAI && CDAI.status === 'done'", timeout=15000); pg.wait_for_timeout(250)
+    check(ev("BURN.k") == 'str' and pg.input_value('#x-mins') == '50' and ev("BURN.met") == 5 and plus() == cnt(5.0 * KG * 50 / 60, 50, 0), 'AI 力量训练 → strength kind, 中, minutes filled')
     # 旧版 Code.gs：提示更新
     ev("window._api = api; api = () => Promise.reject(new Error('未知操作：aiCardio')); 0")
     pg.fill('#cd-ai-text', '跑步 30 分钟'); pg.click('#cd-ai-tx .btn'); pg.wait_for_timeout(400)
@@ -201,7 +248,7 @@ with sync_playwright() as p:
     txt = pg.inner_text('#s-content')
     check(txt.count('没填时长 %') == 3 and '体重用 77.2 kg' in txt, 'settings: 3 fallback ratios + formula hint with weight')
     ev("LOCAL.theme = 'sumi'; applyTheme()")
-    check(ev("cardioIcon('tread') + cardioIcon('box')").count('kj') == 2 and '坂' in ev("cardioIcon('tread')") and '拳' in ev("cardioIcon('box')"), 'sumi theme: 坂 / 拳')
+    check(ev("cardioIcon('tread') + cardioIcon('box') + cardioIcon('str')").count('kj') == 3 and '坂' in ev("cardioIcon('tread')") and '拳' in ev("cardioIcon('box')") and '力' in ev("cardioIcon('str')"), 'sumi theme: 坂 / 拳 / 力')
     ev("LOCAL.theme = 'ios'; applyTheme(); go('today')")
     check(not errs, 'no page errors ' + str(errs))
     b.close()
