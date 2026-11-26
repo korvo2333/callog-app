@@ -64,6 +64,7 @@ function renderSettings() {
         <option value="0" ${num(s.weekStart) === 0 ? 'selected' : ''}>周日</option>
         <option value="1" ${num(s.weekStart) === 1 ? 'selected' : ''}>周一</option>
       </select></label>`))
+  + fcard('set:train', '训练计划', planSummary(), planCardHTML())
   + fcard('set:watch', '手表步数', watchSummary(), watchCardHTML())
   + fcard('set:periods', '特殊时段', (s.overrides || []).length ? `${(s.overrides || []).length} 个` : '', `
     ${(s.overrides || []).map(o => `<div class="ov"><span class="grow">${md(o.from)}–${md(o.to)} · <b>${fmt(o.kcal)}</b> kcal · ${esc(o.label || '')}</span>

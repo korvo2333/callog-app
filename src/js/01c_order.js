@@ -8,7 +8,7 @@ const MODS = {
   week: [['week:def', '热量缺口'], ['week:chart', '每天摄入'], ['week:daily', '每日明细'], ['week:w8', '近 8 周'], ['week:tdee', '实测维持热量']],
   body: [['body:form', '记录'], ['body:stats', '概览'], ['body:w', '体重'], ['body:bf', '体脂率'], ['body:lean', '去脂体重'],
     ['body:muscle', '肌肉量'], ['body:recs', '全部记录']],
-  settings: [['set:theme', '主题'], ['set:order', '板块排序'], ['set:goals', '每日目标'], ['set:watch', '手表步数'], ['set:periods', '特殊时段'],
+  settings: [['set:theme', '主题'], ['set:order', '板块排序'], ['set:goals', '每日目标'], ['set:train', '训练计划'], ['set:watch', '手表步数'], ['set:periods', '特殊时段'],
     ['set:plan', '减脂计划'], ['set:ai', 'AI 模型'], ['set:sync', '同步']]
 };
 const MOD_PAGES = [['today', '今日'], ['week', '本周'], ['body', '身体'], ['settings', '设置']];

@@ -27,10 +27,10 @@ const burnDate = () => BURN.date || VIEW.date;
 // 新记录默认选哪种：按这天的训练安排（力量日 → 力量，有氧日 → 上次用的有氧，拳击日 → 拳击）；休息日用上次选的
 function defaultTrainKind(date) {
   const last = CARDIO_KINDS.some(c => c.k === LOCAL.cardioKind) ? LOCAL.cardioKind : 'ell';
-  const plan = WEEK_PARTS[parseYmd(date).getDay()] || {};
-  if (plan.title === '拳击') return 'box';
-  if (plan.title === '有氧') return last === 'str' || last === 'box' ? 'ell' : last;
-  if (plan.main && plan.main.length) return 'str';
+  const type = planOf(date).type;
+  if (type === 'box') return 'box';
+  if (type === 'cardio') return last === 'str' || last === 'box' ? 'ell' : last;
+  if (type === 'str') return 'str';
   return last;
 }
 

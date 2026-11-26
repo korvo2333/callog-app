@@ -26,6 +26,12 @@ function setSetting(key, value) {
   saveDB();
   queue({ op: 'upsert', table: 'Settings', row: { key, value: JSON.stringify(value) } });
 }
+function delSetting(key) {
+  if (!(key in DB.settings)) return;
+  delete DB.settings[key];
+  saveDB();
+  queue({ op: 'delete', table: 'Settings', id: key });
+}
 
 // 步数：手动改的值（有手动值时以手动为准，清空则回到手表的数）
 function setStepsManual(date, n) {

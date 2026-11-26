@@ -639,6 +639,44 @@ body:has(#sheet-bg.open .sheet.tall) .toast { bottom: calc(86px + env(safe-area-
 .ord-row.moved { animation: ord-flash .7s ease-out; }
 @keyframes ord-flash { 0% { background: color-mix(in srgb, var(--accent) 22%, transparent); } 100% { background: transparent; } }
 
+/* ── 设置：训练计划（一周七天，点一天在弹层里改） ── */
+.tp-list { display: flex; flex-direction: column; margin-top: -2px; }
+.tp-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 0; border: none; border-bottom: 1px solid var(--border);
+  background: none; color: var(--text); text-align: left; font: inherit; border-radius: 0; }
+.tp-row:last-child { border-bottom: none; }
+.tp-d { flex: 0 0 auto; width: 32px; font-size: 13px; color: var(--muted); font-weight: 600; }
+.tp-row.on .tp-d { color: var(--accent-text); }
+.tp-m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tp-m b { font-size: 14px; font-weight: 600; }
+.tp-m small { font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-k { flex: 0 0 auto; font-size: 11.5px; padding: 2px 9px; border-radius: var(--r-chip); background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.tp-k.t-str { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; font-weight: 600; }
+.pd-sub { font-weight: 400; margin-left: 8px; }
+.pd-items { display: flex; flex-direction: column; gap: 6px; }
+.pd-it { display: flex; align-items: center; gap: 4px; }
+.pd-it .in { flex: 1; min-width: 0; }
+.pd-it .ord-b { width: 30px; height: 34px; flex: 0 0 auto; font-size: 17px; line-height: 1; }
+.pd-it .ord-b svg { width: 16px; height: 16px; }
+.pd-n { display: inline-flex; align-items: center; gap: 2px; margin-right: 4px; }
+.pd-n b { min-width: 26px; text-align: center; font-size: 13px; }
+.pd-new { margin-top: 8px; }
+.pd-sug { margin-top: 6px; }
+.pd-cap { font-size: 11.5px; color: var(--muted); margin-top: 10px; }
+.pd-sug .chip { padding: 5px 10px; font-size: 12.5px; }
+.pd-mm .mm-svg { max-width: 340px; margin: 0 auto; }
+.pd-mm .mm-m, .pd-mm .mm-lb { cursor: default; pointer-events: none; }
+.pd-parts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pd-p { position: relative; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); border-radius: var(--r-chip);
+  padding: 5px 11px; font-size: 12.5px; font-family: inherit; transition: background .2s, color .2s; }
+.pd-p.l1 { background: var(--mm1); border-color: var(--mm1); color: var(--on-accent); font-weight: 700; }
+.pd-p.l2 { background: var(--mm2); border-color: var(--mm2); color: var(--text); font-weight: 600; }
+[data-theme="industry"] .pd-p.l1 { color: #161616; }
+[data-theme="expedition"] .pd-p.l1 { color: #1a0d0a; }
+.pd-p.adj::after { content: ''; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); border: 1.5px solid var(--surface); }
+.pd-leg { justify-content: flex-start; margin-top: 8px; }
+.pd-leg i.adj { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+.pd-auto { display: block; margin-top: 8px; padding: 0; }
+
 /* 训练部位：每块肌肉可点 */
 .mm-m, .mm-lb { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .mm-m.tap { stroke: var(--text); stroke-width: 2.2; }

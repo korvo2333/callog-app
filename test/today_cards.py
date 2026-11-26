@@ -244,7 +244,7 @@ with sync_playwright() as p:
     # 设置页本身：马上生效
     ev("go('settings')"); pg.wait_for_timeout(1200)
     ev("pickOrderPage('设置')")
-    for i in range(7): ev("const b = document.querySelector('#ord-list [data-k=\"set:sync\"] .ord-b'); if (!b.disabled) b.click()")
+    for i in range(len(ev("MODS.settings"))): ev("const b = document.querySelector('#ord-list [data-k=\"set:sync\"] .ord-b'); if (!b.disabled) b.click()")
     check(ev("document.querySelector('#s-content > [data-fold]').dataset.fold") == 'set:sync', 'settings reorders right away')
     ev("resetOrder()"); pg.wait_for_timeout(300)
     check(ev("document.querySelector('#s-content > [data-fold]').dataset.fold") == 'set:theme' and not ev("(LOCAL.order || {}).settings"), 'reset restores default')

@@ -2,16 +2,96 @@
 // 今日：今天建议练的部位（按周几），用正面 / 背面人体图标出主要部位和次要部位
 // 人体图是自己画的（参考解剖图的肌肉形状）：右半边的轮廓和肌肉，左半边镜像；颜色全部用主题变量
 // ════════════════════════════════════════════
+// 每周训练安排：在「设置 → 训练计划」里改（存在 Settings 表的 weekPlan，几台手机同步）；没改过就用下面的默认安排
+// 一天：type 力量 str / 有氧 cardio / 拳击 box / 休息 rest；title 名称；items 动作（力量日，「臀 ×2」＝两个练臀的动作，「中束 + 后束」＝连着做）；
+// note 说明（其他日子）；adj 手动改过的部位 { 部位: 0 不练 / 1 主要 / 2 次要 }
 // 0 = 周日 … 6 = 周六
-const WEEK_PARTS = [
-  { title: '下肢 · 深蹲日', items: '深蹲 · 股四头 · 腘绳肌 · 二头 ×2 · 三头', main: ['股四头', '腘绳肌', '二头', '三头'], sub: ['臀', '内收', '下背', '前臂'] },
-  { title: '有氧', items: '椭圆机或跑步，低强度', main: [], sub: [] },
-  { title: '上肢 · 肩推日', items: '肩推 · 背下拉 · 背后拉 · 哑铃卧推 · 下胸 · 中束', main: ['前束', '中束', '背阔', '斜方', '中胸', '下胸'], sub: ['三头', '二头', '后束'] },
-  { title: '下肢 · 硬拉日', items: '硬拉 · 臀 ×2 · 三头 ×2 · 二头', main: ['臀', '三头', '二头'], sub: ['腘绳肌', '下背', '外展', '前臂'] },
-  { title: '上肢 · 卧推日', items: '卧推 · 上胸 · 背宽 · 背厚 · 中束 · 后束', main: ['中胸', '上胸', '背阔', '斜方', '中束', '后束'], sub: ['前束', '三头', '二头'] },
-  { title: '拳击', items: '全身，肩和核心为主', main: ['核心', '前束', '中束'], sub: ['股四头', '小腿', '臀', '三头', '后束'] },
-  { title: '休息', items: '好好恢复', main: [], sub: [] }
+const PLAN_TYPES = [['str', '力量'], ['cardio', '有氧'], ['box', '拳击'], ['rest', '休息']];
+const PLAN_NOTE = { cardio: '椭圆机或跑步，低强度', box: '全身，肩和核心为主', rest: '好好恢复' };
+const DEFAULT_WEEK_PLAN = [
+  { type: 'str', title: '下肢 · 硬拉日', items: ['硬拉', '臀 ×2', '股四头', '中束 + 后束', '核心'] },
+  { type: 'cardio', title: '有氧', note: '低强度：椭圆机或跑步' },
+  { type: 'str', title: '上肢 · 肩推日', items: ['肩推', '背宽', '哑铃卧推', '背厚', '二头 ×2'] },
+  { type: 'str', title: '下肢 · 深蹲日', items: ['深蹲', '股四头', '腘绳肌', '臀', '中束', '小腿'] },
+  { type: 'str', title: '上肢 · 卧推日', items: ['卧推', '背厚', '上胸', '背宽', '下胸', '三头 ×1'] },
+  { type: 'box', title: '拳击', note: '全身，肩和核心为主' },
+  { type: 'rest', title: '休息', note: '好好恢复' }
 ];
+// 人体图上能标的部位（顺序 = 设置里部位按钮的顺序）
+const MM_PARTS = ['上胸', '中胸', '下胸', '前束', '中束', '后束', '斜方', '背阔', '下背', '二头', '三头', '前臂', '核心', '臀', '外展', '内收', '股四头', '腘绳肌', '小腿'];
+// 动作 → [主要部位, 次要部位]。部位名本身也能当动作写（只练这个部位）；写法里包含这些词就认得（「杠铃划船」→ 划船）
+const EX_PARTS = {
+  深蹲: [['股四头', '臀'], ['内收', '下背', '核心']], 前蹲: [['股四头'], ['臀', '核心']], 腿举: [['股四头', '臀'], ['内收']],
+  哈克深蹲: [['股四头'], ['臀', '内收']], 弓步: [['股四头', '臀'], ['内收', '腘绳肌']], 分腿蹲: [['股四头', '臀'], ['内收', '腘绳肌']],
+  硬拉: [['臀', '腘绳肌', '下背'], ['股四头', '斜方', '前臂', '核心']], 罗马尼亚硬拉: [['腘绳肌', '臀'], ['下背', '前臂']], 直腿硬拉: [['腘绳肌', '臀'], ['下背', '前臂']],
+  臀推: [['臀'], ['腘绳肌', '外展']], 臀桥: [['臀'], ['腘绳肌']], 腿屈伸: [['股四头'], []], 腿弯举: [['腘绳肌'], ['小腿']], 提踵: [['小腿'], []],
+  卧推: [['中胸'], ['前束', '三头']], 哑铃卧推: [['中胸'], ['前束', '三头']], 上斜: [['上胸'], ['前束', '三头']], 下斜: [['下胸'], ['三头']],
+  飞鸟: [['中胸'], ['前束']], 夹胸: [['中胸'], ['前束']], 俯卧撑: [['中胸'], ['前束', '三头', '核心']], 双杠臂屈伸: [['下胸', '三头'], ['前束']],
+  肩推: [['前束'], ['中束', '三头', '斜方']], 推举: [['前束'], ['中束', '三头', '斜方']], 侧平举: [['中束'], ['斜方']], 前平举: [['前束'], []],
+  面拉: [['后束'], ['斜方']], 反向飞鸟: [['后束'], ['斜方']], 耸肩: [['斜方'], []],
+  背宽: [['背阔'], ['二头', '后束']], 下拉: [['背阔'], ['二头', '后束']], 引体: [['背阔'], ['二头', '后束']],
+  背厚: [['斜方', '背阔'], ['后束', '二头']], 划船: [['斜方', '背阔'], ['后束', '二头']],
+  弯举: [['二头'], ['前臂']], 二头: [['二头'], ['前臂']], 臂屈伸: [['三头'], []], 下压: [['三头'], []],
+  卷腹: [['核心'], []], 平板: [['核心'], []], 举腿: [['核心'], []], 拳击: [['核心', '前束', '中束'], ['股四头', '小腿', '臀', '三头', '后束']]
+};
+const PART_ALIAS = { 胸: '中胸', 股四: '股四头', 腘绳: '腘绳肌', 小臂: '前臂', 腹: '核心', 腹部: '核心', 臀部: '臀', 臀中: '外展', 背阔肌: '背阔', 斜方肌: '斜方', 竖脊: '下背' };
+const EX_KEYS = [...new Set([...Object.keys(EX_PARTS), ...MM_PARTS, ...Object.keys(PART_ALIAS)])].sort((a, b) => b.length - a.length);
+function exParts(k) {
+  if (EX_PARTS[k]) return EX_PARTS[k];
+  const p = PART_ALIAS[k] || k;
+  return EX_PARTS[p] || [[p], []];
+}
+// 「臀 ×2」→ { name: '臀', n: 2, x: true }
+function parseItem(s) {
+  const m = String(s || '').trim().match(/^(.*?)\s*[×xX*]\s*(\d+)$/);
+  return m && m[1] ? { name: m[1].trim(), n: Math.max(1, +m[2]), x: true } : { name: String(s || '').trim(), n: 1, x: false };
+}
+const fmtItem = (name, n, x) => n > 1 || x ? `${name} ×${n}` : name;
+// 一个动作练到哪些部位：按「+」拆成几个动作，每个里面从长到短找认得的词；一个都没认出的放进 unknown
+function itemParts(s) {
+  const main = new Set(), sub = new Set(), unknown = [];
+  parseItem(s).name.split(/\s*[+＋、,，/]\s*/).filter(Boolean).forEach(piece => {
+    let rest = piece, hit = false;
+    EX_KEYS.forEach(k => {
+      if (!rest.includes(k)) return;
+      rest = rest.split(k).join('\u0000');
+      hit = true;
+      const [m, sb] = exParts(k);
+      m.forEach(p => main.add(p)); sb.forEach(p => sub.add(p));
+    });
+    if (!hit) unknown.push(piece);
+  });
+  return { main, sub, unknown };
+}
+// 一天的安排：动作 → 自动标的部位（autoLv），再叠上手动改的（adj）
+function planDayOf(d) {
+  d = d || {};
+  const type = PLAN_TYPES.some(t => t[0] === d.type) ? d.type : 'rest';
+  const items = type === 'str' ? (Array.isArray(d.items) ? d.items : []).map(s => String(s).trim()).filter(Boolean) : [];
+  const autoLv = {}, unknown = [];
+  (type === 'box' ? ['拳击'] : items).forEach(s => {
+    const r = itemParts(s);
+    r.main.forEach(p => { autoLv[p] = 1; });
+    r.sub.forEach(p => { if (!autoLv[p]) autoLv[p] = 2; });
+    if (type === 'str') unknown.push(...r.unknown);
+  });
+  const adj = type === 'rest' ? {} : Object.assign({}, d.adj), lv = {};
+  MM_PARTS.forEach(p => { const v = p in adj ? +adj[p] : autoLv[p] || 0; if (v) lv[p] = v; });
+  const name = PLAN_TYPES.find(t => t[0] === type)[1];
+  return {
+    type, items, adj, autoLv, lv, unknown,
+    title: String(d.title || '').trim() || name,
+    note: type === 'str' ? '' : String(d.note || '').trim(),
+    text: type === 'str' ? (items.length ? items.join(' · ') : '还没安排动作') : String(d.note || '').trim() || PLAN_NOTE[type],
+    main: MM_PARTS.filter(p => lv[p] === 1), sub: MM_PARTS.filter(p => lv[p] === 2)
+  };
+}
+// 保存的安排（7 天）；没有或格式不对就用默认
+function weekPlanRaw() {
+  const p = DB.settings.weekPlan;
+  return Array.isArray(p) && p.length === 7 ? p : DEFAULT_WEEK_PLAN;
+}
+const planOf = date => planDayOf(weekPlanRaw()[parseYmd(date).getDay()]);
 
 // 右半边轮廓：从头顶中点出发，一段段三次贝塞尔曲线 [控制点1, 控制点2, 终点]，到裆部结束
 // 比例按 7.5 头身：头高 53，肩宽约 2 个头高，肘在腰线、手腕在裆部高度、指尖到大腿中段，膝盖在 292 左右
@@ -139,7 +219,7 @@ function musclesSVG(plan) {
 function mmTap(e) {
   const t = e.target.closest('[data-m]');
   if (!t || !t.dataset.m) return;
-  const plan = WEEK_PARTS[parseYmd(VIEW.date).getDay()], parts = t.dataset.p || '';
+  const plan = planOf(VIEW.date), parts = t.dataset.p || '';
   t.classList.add('tap');
   setTimeout(() => t.classList.remove('tap'), 260);
   ATLAS.open(t.dataset.m, +t.dataset.ai || 0, parts, parts ? mmLevel(parts, plan) : 0);
@@ -147,16 +227,16 @@ function mmTap(e) {
 function renderMuscles() {
   const el = $('#t-mm');
   if (!el) return;
-  const d = VIEW.date, w = parseYmd(d).getDay(), plan = WEEK_PARTS[w];
+  const d = VIEW.date, w = parseYmd(d).getDay(), plan = planOf(d);
   const rest = !plan.main.length && !plan.sub.length;
   el.dataset.fold = 'today:mm';
   el.classList.toggle('folded', isFolded('today:mm'));
   el.classList.toggle('mm-rest', rest);
   el.classList.toggle('mm-anim', el.dataset.mmFor !== d);   // 换了日子才播放亮起来的动画（今日页经常重画，不每次都闪）
   el.dataset.mmFor = d;
-  el.innerHTML = `<div class="card-t fold-t" ${foldAttrs('today:mm')}>训练部位<span>${['周日', '周一', '周二', '周三', '周四', '周五', '周六'][w]} · ${plan.title}</span>${FOLD_IC}</div>
+  el.innerHTML = `<div class="card-t fold-t" ${foldAttrs('today:mm')}>训练部位<span>周${WD[w]} · ${esc(plan.title)}</span>${FOLD_IC}</div>
     <div class="fold"><div class="fold-in">
-      <div class="mm-plan">${plan.items}</div>
+      <div class="mm-plan">${esc(plan.text)}</div>
       ${musclesSVG(plan)}
       <div class="mm-leg"><span class="mm-hint">点肌肉看它怎么发力</span>${rest ? '' : '<span><i class="l1"></i>主要部位</span><span><i class="l2"></i>次要部位</span>'}</div>
     </div></div>`;
